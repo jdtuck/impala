@@ -438,7 +438,7 @@ class ModelBassPca_func_elastic(AbstractModel):
         parmat_array = np.vstack([parmat[v] for v in self.input_names]).T # get correct subset/ordering of inputs
         predf = self.mod.predict(parmat_array, mcmc_use=np.array([self.ii]), nugget=nugget)[0, :, :]
         predv = self.mod_warp.predict(parmat_array, mcmc_use=np.array([self.ii]), nugget=nugget)[0, :, :]
-        gam = fs.v_to_gam(predv)
+        gam = fs.geometry.v_to_gam(predv)
         pred = predf.copy()
         for i in range(predf.shape[0]):
             pred[i,:] = fs.warp_f_gamma(np.linspace(0,1,gam.shape[1]), predf[i,:], gam[i,:])
