@@ -384,7 +384,7 @@ class ModelBassPca_func_elastic(AbstractModel):
         pool        : Whether using the pooled model
         """
         self.mod = bmod
-		self.mod_warp = bmod_warp
+        self.mod_warp = bmod_warp
         self.stochastic = True
         self.nmcmc = len(bmod.bm_list[0].samples.s2)
         self.input_names = input_names
@@ -437,16 +437,16 @@ class ModelBassPca_func_elastic(AbstractModel):
         """
         parmat_array = np.vstack([parmat[v] for v in self.input_names]).T # get correct subset/ordering of inputs
         predf = self.mod.predict(parmat_array, mcmc_use=np.array([self.ii]), nugget=nugget)[0, :, :]
-		predv = self.mod_warp.predict(parmat_array, mcmc_use=np.array([self.ii]), nugget=nugget)[0, :, :]
-		gam = fs.v_to_gam(predv)
-		pred = predf.copy()
-		for i in range(predf.shape[0]):
-			pred[i,:] = fs.warp_f_gamma(np.linspace(0,1,gam.shape[1]), predf[i,:], gam[i,:])
+        predv = self.mod_warp.predict(parmat_array, mcmc_use=np.array([self.ii]), nugget=nugget)[0, :, :]
+        gam = fs.v_to_gam(predv)
+        pred = predf.copy()
+        for i in range(predf.shape[0]):
+            pred[i,:] = fs.warp_f_gamma(np.linspace(0,1,gam.shape[1]), predf[i,:], gam[i,:])
 
         if pool is True:
             return pred
         else:
-			raise "Non pooled is not tested."
+            raise "Non pooled is not tested."
             nrep = list(parmat.values())[0].shape[0] // self.nexp
             return np.concatenate([pred[np.ix_(np.arange(i, nrep*self.nexp, self.nexp), np.where(self.exp_ind==i)[0])] for i in range(self.nexp)], 1)
             # this is evaluating all experiments for all thetas, which is overkill
