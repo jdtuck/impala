@@ -394,9 +394,9 @@ class ModelBassPca_func_elastic(AbstractModel):
         self.ii = 0
         npc = self.mod.nbasis
         if npc > 1:
-            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error)) #+ np.diag(np.cov(self.mod_warp.trunc_error))
+            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error)) + np.diag(np.cov(self.mod_warp.trunc_error))
         else:
-            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error).reshape([1,1])) #+ np.diag(np.cov(self.mod_warp.trunc_error).reshape([1,1]))
+            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error).reshape([1,1])) + np.diag(np.cov(self.mod_warp.trunc_error).reshape([1,1]))
         self.mod_s2 = np.empty([self.nmcmc, npc])
         for i in range(npc):
             self.mod_s2[:,i] = self.mod.bm_list[i].samples.s2
@@ -438,10 +438,10 @@ class ModelBassPca_func_elastic(AbstractModel):
         parmat_array = np.vstack([parmat[v] for v in self.input_names]).T # get correct subset/ordering of inputs
         predf = self.mod.predict(parmat_array, mcmc_use=np.array([self.ii]), nugget=nugget)[0, :, :]
         predv = self.mod_warp.predict(parmat_array, mcmc_use=np.array([self.ii]), nugget=nugget)[0, :, :]
-        gam = fs.geometry.v_to_gam(predv)
+        gam = fs.geometry.v_to_gam(predv.T)
         pred = predf.copy()
         for i in range(predf.shape[0]):
-            pred[i,:] = fs.warp_f_gamma(np.linspace(0,1,gam.shape[1]), predf[i,:], gam[i,:])
+            pred[i,:] = fs.warp_f_gamma(np.linspace(0,1,gam.shape[1]), predf[i,:], gam[:,i])
 
         if pool is True:
             return pred
