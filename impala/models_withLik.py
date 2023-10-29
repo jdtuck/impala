@@ -394,9 +394,9 @@ class ModelBassPca_func_elastic(AbstractModel):
         self.ii = 0
         npc = self.mod.nbasis
         if npc > 1:
-            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error)) + np.diag(np.cov(self.mod_warp.trunc_error))
+            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error)) #+ np.diag(np.cov(self.mod_warp.trunc_error))
         else:
-            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error).reshape([1,1])) + np.diag(np.cov(self.mod_warp.trunc_error).reshape([1,1]))
+            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error).reshape([1,1])) #+ np.diag(np.cov(self.mod_warp.trunc_error).reshape([1,1]))
         self.mod_s2 = np.empty([self.nmcmc, npc])
         for i in range(npc):
             self.mod_s2[:,i] = self.mod.bm_list[i].samples.s2
