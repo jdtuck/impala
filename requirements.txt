@@ -2,3 +2,4 @@ numpy
 pyBASS
 scipy
 matplotlib
+pyBayesPPR
