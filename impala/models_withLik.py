@@ -441,7 +441,7 @@ class ModelBassPca_func_elastic_h(AbstractModel):
         gam = fs.geometry.h_to_gam(predv.T)
         pred = predf.copy()
         for i in range(predf.shape[0]):
-            pred[i,:] = fs.warp_f_gamma(np.linspace(0,1,gam.shape[0]), predf[i,:], gam[:,i])
+            pred[i,:] = fs.warp_f_gamma(np.linspace(0,1,gam.shape[0]), predf[i,:], fs.invertGamma(gam[:,i]))
 
         if pool is True:
             return pred
@@ -542,7 +542,7 @@ class ModelBassPca_func_elastic(AbstractModel):
         gam = fs.geometry.v_to_gam(predv.T)
         pred = predf.copy()
         for i in range(predf.shape[0]):
-            pred[i,:] = fs.warp_f_gamma(np.linspace(0,1,gam.shape[0]), predf[i,:], gam[:,i])
+            pred[i,:] = fs.warp_f_gamma(np.linspace(0,1,gam.shape[0]), predf[i,:], fs.invertGamma(gam[:,i]))
 
         if pool is True:
             return pred
@@ -642,7 +642,7 @@ class ModelBpprPca_func_elastic(AbstractModel):
         gam = fs.geometry.v_to_gam(predv.T)
         pred = predf.copy()
         for i in range(predf.shape[0]):
-            pred[i,:] = fs.warp_f_gamma(np.linspace(0,1,gam.shape[0]), predf[i,:], gam[:,i])
+            pred[i,:] = fs.warp_f_gamma(np.linspace(0,1,gam.shape[0]), predf[i,:], fs.invertGamma(gam[:,i]))
 
         if pool is True:
             return pred
