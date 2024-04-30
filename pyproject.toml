@@ -19,7 +19,8 @@ dependencies=[
         "matplotlib",
         "scipy",
         "pyBASS",
-	"pyBayesPPR",
+	    "pyBayesPPR",
+        "mvBayes",
 ]
 
 classifiers = [

@@ -2,6 +2,7 @@ import numpy as np
 import pyBASS as pb
 import fdasrsf as fs
 import pyBayesPPR as pbppr
+import mvBayes as mb
 import impala.physical_models_vec as pm_vec
 from itertools import cycle
 from scipy.interpolate import interp1d
