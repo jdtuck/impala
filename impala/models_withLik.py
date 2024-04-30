@@ -547,20 +547,20 @@ class ModelmvBayes(AbstractModel):
         """
         self.mod = bmod
         self.stochastic = True
-        self.nmcmc = len(bmod.bm_list[0].samples.sdResid)
+        self.nmcmc = len(bmod.bm_list[0].samples.s2)
         self.input_names = input_names
-        self.basis = self.mod.basis
+        self.basis = self.mod.basisInfo.basis
         self.meas_error_cor = np.eye(self.basis.shape[0])
         self.discrep_cov = np.eye(self.basis.shape[0]) * 1e-12
         self.ii = 0
-        npc = self.mod.nbasis
+        npc = self.mod.basisInfo.nBasis
         if npc > 1:
-            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error))
+            self.trunc_error_var = np.diag(np.cov(self.mod.truncError))
         else:
-            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error).reshape([1, 1]))
+            self.trunc_error_var = np.diag(np.cov(self.mod.truncError).reshape([1, 1]))
         self.mod_s2 = np.empty([self.nmcmc, npc])
         for i in range(npc):
-            self.mod_s2[:, i] = self.mod.bm_list[i].samples.sdResid ** 2
+            self.mod_s2[:, i] = self.mod.bm_list[i].samples.s2
         self.emu_vars = self.mod_s2[self.ii]
         self.yobs = None
         self.marg_lik_cov = None
@@ -1082,24 +1082,24 @@ class ModelmvBayes_elastic(AbstractModel):
         self.mod = bmod
         self.mod_warp = bmod_warp
         self.stochastic = True
-        self.nmcmc = len(bmod.bm_list[0].samples.sdResid)
+        self.nmcmc = len(bmod.bmList[0].samples.s2)
         self.input_names = input_names
-        self.basis = self.mod.basis
+        self.basis = self.mod.basisInfo.basis
         self.meas_error_cor = np.eye(self.basis.shape[0])
         self.discrep_cov = np.eye(self.basis.shape[0]) * 1e-12
         self.ii = 0
-        npc = self.mod.nbasis
+        npc = self.mod.basisInfo.nBasis
         if npc > 1:
-            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error)) + np.diag(
-                np.cov(self.mod_warp.trunc_error)
+            self.trunc_error_var = np.diag(np.cov(self.mod.truncError)) + np.diag(
+                np.cov(self.mod_warp.truncError)
             )
         else:
             self.trunc_error_var = np.diag(
-                np.cov(self.mod.trunc_error).reshape([1, 1])
-            ) + np.diag(np.cov(self.mod_warp.trunc_error).reshape([1, 1]))
+                np.cov(self.mod.truncError).reshape([1, 1])
+            ) + np.diag(np.cov(self.mod_warp.truncError).reshape([1, 1]))
         self.mod_s2 = np.empty([self.nmcmc, npc])
         for i in range(npc):
-            self.mod_s2[:, i] = self.mod.bm_list[i].samples.sdResid ** 2
+            self.mod_s2[:, i] = self.mod.bm_list[i].samples.s2
         self.emu_vars = self.mod_s2[self.ii]
         self.yobs = None
         self.marg_lik_cov = None
