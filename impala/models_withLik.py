@@ -555,12 +555,12 @@ class ModelmvBayes(AbstractModel):
         self.ii = 0
         npc = self.mod.basisInfo.nBasis
         if npc > 1:
-            self.trunc_error_var = np.diag(np.cov(self.mod.truncError))
+            self.trunc_error_var = np.diag(np.cov(self.mod.basisInfo.truncError))
         else:
-            self.trunc_error_var = np.diag(np.cov(self.mod.truncError).reshape([1, 1]))
+            self.trunc_error_var = np.diag(np.cov(self.mod.basisInfo.truncError).reshape([1, 1]))
         self.mod_s2 = np.empty([self.nmcmc, npc])
         for i in range(npc):
-            self.mod_s2[:, i] = self.mod.bm_list[i].samples.s2
+            self.mod_s2[:, i] = self.mod.bmList[i].samples.s2
         self.emu_vars = self.mod_s2[self.ii]
         self.yobs = None
         self.marg_lik_cov = None
@@ -1090,16 +1090,16 @@ class ModelmvBayes_elastic(AbstractModel):
         self.ii = 0
         npc = self.mod.basisInfo.nBasis
         if npc > 1:
-            self.trunc_error_var = np.diag(np.cov(self.mod.truncError)) + np.diag(
-                np.cov(self.mod_warp.truncError)
+            self.trunc_error_var = np.diag(np.cov(self.mod.basisInfo.truncError)) + np.diag(
+                np.cov(self.mod_warp.basisInfo.truncError)
             )
         else:
             self.trunc_error_var = np.diag(
-                np.cov(self.mod.truncError).reshape([1, 1])
-            ) + np.diag(np.cov(self.mod_warp.truncError).reshape([1, 1]))
+                np.cov(self.mod.basisInfo.truncError).reshape([1, 1])
+            ) + np.diag(np.cov(self.mod_warp.basisInfo.truncError).reshape([1, 1]))
         self.mod_s2 = np.empty([self.nmcmc, npc])
         for i in range(npc):
-            self.mod_s2[:, i] = self.mod.bm_list[i].samples.s2
+            self.mod_s2[:, i] = self.mod.bmList[i].samples.s2
         self.emu_vars = self.mod_s2[self.ii]
         self.yobs = None
         self.marg_lik_cov = None
