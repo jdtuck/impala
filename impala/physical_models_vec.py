@@ -11,7 +11,7 @@ physical_models_vec.py
 """
 
 import numpy as np
-np.seterr(under='ignore')
+np.seterr(all = 'raise')
 #import ipdb
 import copy
 from math import pi
@@ -95,6 +95,43 @@ class Quadratic_Specific_Heat(BaseModel):
         cnow=self.parent.parameters.c0+self.parent.parameters.c1*tnow+self.parent.parameters.c2*tnow**2
         return cnow
 
+class Piecewise_Linear_Specific_Heat(BaseModel):
+   """
+   Piecewise Linear Specific Heat Model
+   Cv (T) = c0_0 + c1_0 * T for T<=T_t
+   Cv (T) = c0_1 + c1_1 * T for T>T_t          
+   """
+   consts = ['T_t','c0_0', 'c1_0', 'c0_1', 'c1_1']
+   def value(self, *args):
+       tnow=self.parent.state.T
+       intercept = np.repeat(self.parent.parameters.c0_0,len(tnow))
+       slope = np.repeat(self.parent.parameters.c1_0,len(tnow))
+       intercept[np.where(tnow > self.parent.parameters.T_t)] =  self.parent.parameters.c0_1
+       slope[np.where(tnow > self.parent.parameters.T_t)] =  self.parent.parameters.c1_1
+       cnow = intercept + slope * tnow
+       return cnow
+
+class Piecewise_Quadratic_Specific_Heat(BaseModel):
+    """
+   Piecewise Quadratic Specific Heat Model
+   Cv (T) = c0_0 + c1_0 * T + c2_0 * T**2 for T<=T_t
+   Cv (T) = c0_1 + c1_1 * T + c2_1 * T**2 for T>T_t          
+   """
+    consts = ['T_t','c0_0', 'c1_0', 'c2_0', 'c0_1', 'c1_1', 'c2_1']
+    def value(self, *args):
+        tnow=self.parent.state.T
+        pow_0_coeff = np.repeat(self.parent.parameters.c0_0,len(tnow))
+        pow_1_coeff = np.repeat(self.parent.parameters.c1_0,len(tnow))
+        pow_2_coeff = np.repeat(self.parent.parameters.c2_0,len(tnow))
+        
+        pow_0_coeff[np.where(tnow > self.parent.parameters.T_t)] =  self.parent.parameters.c0_1
+        pow_1_coeff[np.where(tnow > self.parent.parameters.T_t)] =  self.parent.parameters.c1_1
+        pow_2_coeff[np.where(tnow > self.parent.parameters.T_t)] =  self.parent.parameters.c2_1
+        
+        cnow = pow_0_coeff + pow_1_coeff * tnow + pow_2_coeff * tnow * tnow
+        return cnow
+
+    
 # Density Models
 
 class Constant_Density(BaseModel):
