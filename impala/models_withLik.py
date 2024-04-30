@@ -547,17 +547,19 @@ class ModelmvBayes(AbstractModel):
         """
         self.mod = bmod
         self.stochastic = True
-        self.nmcmc = len(bmod.bm_list[0].samples.s2)
+        self.nmcmc = len(bmod.bmList[0].samples.s2)
         self.input_names = input_names
         npc = self.mod.basisInfo.nBasis
-        self.basis = self.mod.basisInfo.basis[:npc,:].T
+        self.basis = self.mod.basisInfo.basis[:npc, :].T
         self.meas_error_cor = np.eye(self.basis.shape[0])
         self.discrep_cov = np.eye(self.basis.shape[0]) * 1e-12
         self.ii = 0
         if npc > 1:
             self.trunc_error_var = np.diag(np.cov(self.mod.basisInfo.truncError.T))
         else:
-            self.trunc_error_var = np.diag(np.cov(self.mod.basisInfo.truncError.T).reshape([1, 1]))
+            self.trunc_error_var = np.diag(
+                np.cov(self.mod.basisInfo.truncError.T).reshape([1, 1])
+            )
         self.mod_s2 = np.empty([self.nmcmc, npc])
         for i in range(npc):
             self.mod_s2[:, i] = self.mod.bmList[i].samples.s2
@@ -598,8 +600,7 @@ class ModelmvBayes(AbstractModel):
         parmat_array = np.vstack(
             [parmat[v] for v in self.input_names]
         ).T  # get correct subset/ordering of inputs
-        pred = self.mod.predict(
-            parmat_array, mcmc_use=np.array([self.ii]))[0, :, :]
+        pred = self.mod.predict(parmat_array, mcmc_use=np.array([self.ii]))[0, :, :]
 
         if pool is True:
             return pred
@@ -1084,14 +1085,14 @@ class ModelmvBayes_elastic(AbstractModel):
         self.nmcmc = len(bmod.bmList[0].samples.s2)
         self.input_names = input_names
         npc = self.mod.basisInfo.nBasis
-        self.basis = self.mod.basisInfo.basis[:npc,:].T
+        self.basis = self.mod.basisInfo.basis[:npc, :].T
         self.meas_error_cor = np.eye(self.basis.shape[0])
         self.discrep_cov = np.eye(self.basis.shape[0]) * 1e-12
         self.ii = 0
         if npc > 1:
-            self.trunc_error_var = np.diag(np.cov(self.mod.basisInfo.truncError.T)) + np.diag(
-                np.cov(self.mod_warp.basisInfo.truncError.T)
-            )
+            self.trunc_error_var = np.diag(
+                np.cov(self.mod.basisInfo.truncError.T)
+            ) + np.diag(np.cov(self.mod_warp.basisInfo.truncError.T))
         else:
             self.trunc_error_var = np.diag(
                 np.cov(self.mod.basisInfo.truncError.T).reshape([1, 1])
@@ -1137,10 +1138,10 @@ class ModelmvBayes_elastic(AbstractModel):
         parmat_array = np.vstack(
             [parmat[v] for v in self.input_names]
         ).T  # get correct subset/ordering of inputs
-        predf = self.mod.predict(
-            parmat_array, mcmc_use=np.array([self.ii]))[0, :, :]
-        predv = self.mod_warp.predict(
-            parmat_array, mcmc_use=np.array([self.ii]))[0, :, :]
+        predf = self.mod.predict(parmat_array, mcmc_use=np.array([self.ii]))[0, :, :]
+        predv = self.mod_warp.predict(parmat_array, mcmc_use=np.array([self.ii]))[
+            0, :, :
+        ]
         gam = fs.geometry.v_to_gam(predv.T)
         pred = predf.copy()
         for i in range(predf.shape[0]):
