@@ -1,11 +1,11 @@
 ######################################
 ######################################
-### Impala Model Class Definitions ###
+# Impala Model Class Definitions     #
 ######################################
 ######################################
 
 ###############
-### Imports ###
+# Imports     #
 ###############
 import numpy as np
 import pyBASS as pb
@@ -15,12 +15,11 @@ import mvBayes as mb
 import impala.physical_models_vec as pm_vec
 from itertools import cycle
 from scipy.interpolate import interp1d
-from scipy.linalg import cho_factor, cho_solve, cholesky
-import scipy.linalg.lapack as la
+from scipy.linalg import cho_factor, cholesky
 import abc
 
 ########################
-### Helper Functions ###
+# Helper Functions     #
 ########################
 
 
@@ -33,12 +32,12 @@ def chol_sample(mean, cov):
 
 
 #####################
-### Model Classes ### #should have eval method and stochastic attribute
+# Model Classes     # 
 #####################
 
 
 #######
-### AbstractModel: Internal class, not called by users
+# AbstractModel: Internal class, not called by users
 class AbstractModel:
     """
     Base Class for Simulator/Emulator Models.
@@ -70,7 +69,8 @@ class AbstractModel:
 
 
 #######
-### ModelBassPca_mult: Model with BASS Emulator from pyBASS with Multivariate Output
+# ModelBassPca_mult: Model with BASS Emulator from pyBASS with 
+# Multivariate Output
 class ModelBassPca_mult(AbstractModel):
     """
     ModelBassPca_mult: PCA Based BASS Model Emulator for Multivariate Outputs
@@ -170,8 +170,9 @@ class ModelBassPca_mult(AbstractModel):
 
 
 #######
-### ModelBpprPca_mult: Model with BayesPPR Emulator with Multivariate Output
-### Not recommended for larger-dimensional functional outputs: instead, use ModelBpprPca_func
+# ModelBpprPca_mult: Model with BayesPPR Emulator with Multivariate Output
+# Not recommended for larger-dimensional functional outputs: instead, 
+# use ModelBpprPca_func
 class ModelBpprPca_mult(AbstractModel):
     """
     ModelBpprPca_mult: BayesPPR Model Emulator for Multivariate Outputs
@@ -270,280 +271,26 @@ class ModelBpprPca_mult(AbstractModel):
         return out
 
 
-#######
-### ModelBassPca_func: Model with BASS Emulator from pyBASS with Functional Response
-class ModelBassPca_func(AbstractModel):
-    """
-    ModelBassPca_func: PCA Based BASS Model Emulator for Functional Outputs
-
-    ModelBassPca_func Handles larger-dimensional functional responses (e.g., on large spatial fields) using
-    various inversion tricks. We require any other covariance e.g., from discrepancy, measurement error, and basis truncation error)
-    to be diagnonal. Smaller-dimensional functional responses could be specified with non-diagonal covariances using ModeBassPca_mult.
-    """
-
-    def __init__(self, bmod, input_names, exp_ind=None, s2="MH"):
-        """
-        bmod        : bassPCA fit
-        input_names : list of the names of the inputs to bmod
-        s2          : method for handling experiment-specific noise s2; options are 'MH' (Metropolis-Hastings Sampling), 'fix' (fixed at s2_est from addVecExperiments call)
-        """
-        self.mod = bmod
-        self.stochastic = True
-        self.nmcmc = len(bmod.bm_list[0].samples.s2)
-        self.input_names = input_names
-        self.basis = self.mod.basis
-        self.meas_error_cor = np.eye(self.basis.shape[0])
-        self.discrep_cov = np.eye(self.basis.shape[0]) * 1e-12
-        self.ii = 0
-        npc = self.mod.nbasis
-        if npc > 1:
-            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error))
-        else:
-            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error).reshape([1, 1]))
-        self.mod_s2 = np.empty([self.nmcmc, npc])
-        for i in range(npc):
-            self.mod_s2[:, i] = self.mod.bm_list[i].samples.s2
-        self.emu_vars = self.mod_s2[self.ii]
-        self.yobs = None
-        self.marg_lik_cov = None
-        self.discrep_vars = None
-        self.nd = 0
-        self.discrep_tau = 1.0
-        self.D = None
-        self.discrep = 0.0
-        if exp_ind is None:
-            exp_ind = np.array(0)
-        self.nexp = exp_ind.max() + 1
-        self.exp_ind = exp_ind
-        self.s2 = s2
-        if s2 == "gibbs":
-            raise "Cannot use Gibbs s2 for emulator models."
-        return
-
-    def step(self):
-        self.ii = np.random.choice(range(self.nmcmc), 1).item()
-        self.emu_vars = self.mod_s2[self.ii]
-        return
-
-    def discrep_sample(self, yobs, pred, cov, itemp):
-        # if self.nd>0:
-        S = np.linalg.inv(
-            np.eye(self.nd) / self.discrep_tau + self.D.T @ cov["inv"] @ self.D
-        )
-        m = self.D.T @ cov["inv"] @ (yobs - pred)
-        discrep_vars = chol_sample(S @ m, S / itemp)
-        # self.discrep = self.D @ self.discrep_vars
-        return discrep_vars
-
-    def eval(self, parmat, pool=None, nugget=False):
-        """
-        parmat : ~
-        """
-        parmat_array = np.vstack(
-            [parmat[v] for v in self.input_names]
-        ).T  # get correct subset/ordering of inputs
-        pred = self.mod.predict(
-            parmat_array, mcmc_use=np.array([self.ii]), nugget=nugget
-        )[0, :, :]
-
-        if pool is True:
-            return pred
-        else:
-            nrep = list(parmat.values())[0].shape[0] // self.nexp
-            return np.concatenate(
-                [
-                    pred[
-                        np.ix_(
-                            np.arange(i, nrep * self.nexp, self.nexp),
-                            np.where(self.exp_ind == i)[0],
-                        )
-                    ]
-                    for i in range(self.nexp)
-                ],
-                1,
-            )
-            # this is evaluating all experiments for all thetas, which is overkill
-
-    def llik(self, yobs, pred, cov):
-        vec = yobs - pred
-        out = -0.5 * (cov["ldet"] + vec.T @ cov["inv"] @ vec)
-        return out
-
-    def lik_cov_inv(self, s2vec):
-        vec = self.trunc_error_var + s2vec
-        Ainv = np.diag(1 / vec)
-        Aldet = np.log(vec).sum()
-        out = self.swm(
-            Ainv,
-            self.basis,
-            np.diag(1 / self.emu_vars),
-            self.basis.T,
-            Aldet,
-            np.log(self.emu_vars).sum(),
-        )
-        return out
-
-    def chol_solve(self, x):
-        mat = cho_factor(x)
-        ldet = 2 * np.sum(np.log(np.diag(mat[0])))
-        # inv = cho_solve(mat, np.eye(x.shape[0])) # correct, but slower for small dimension
-        inv = np.linalg.inv(x)
-        out = {"inv": inv, "ldet": ldet}
-        return out
-
-    def swm(
-        self, Ainv, U, Cinv, V, Aldet, Cldet
-    ):  # sherman woodbury morrison (A+UCV)^-1 and |A+UCV|
-        in_mat = self.chol_solve(Cinv + V @ Ainv @ U)
-        inv = Ainv - Ainv @ U @ in_mat["inv"] @ V @ Ainv
-        ldet = in_mat["ldet"] + Aldet + Cldet
-        out = {"inv": inv, "ldet": ldet}
-        return out
-
-
-#######
-### ModelBpprPca_func: Model with BayesPPR Emulator with Functional Responses
-class ModelBpprPca_func(AbstractModel):
-    """
-    ModelBpprPca_func: BayesPPR Model Emulator for Functional Outputs
-
-    ModelBpprPca_func Handles larger-dimensional functional responses (e.g., on large spatial fields) using
-    various inversion tricks. We require any other covariance e.g., from discrepancy, measurement error, and basis truncation error)
-    to be diagnonal. Smaller-dimensional functional responses could be specified with non-diagonal covariances using ModelBpprPca_mult.
-    """
-
-    def __init__(self, bmod, input_names, exp_ind=None, s2="MH"):
-        """
-        bmod        : bassPCA fit
-        input_names : list of the names of the inputs to bmod
-        s2          : method for handling experiment-specific noise s2; options are 'MH' (Metropolis-Hastings Sampling), 'fix' (fixed at s2_est from addVecExperiments call)
-        """
-        self.mod = bmod
-        self.stochastic = True
-        self.nmcmc = len(bmod.bm_list[0].samples.sdResid)
-        self.input_names = input_names
-        self.basis = self.mod.basis
-        self.meas_error_cor = np.eye(self.basis.shape[0])
-        self.discrep_cov = np.eye(self.basis.shape[0]) * 1e-12
-        self.ii = 0
-        npc = self.mod.nbasis
-        if npc > 1:
-            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error))
-        else:
-            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error).reshape([1, 1]))
-        self.mod_s2 = np.empty([self.nmcmc, npc])
-        for i in range(npc):
-            self.mod_s2[:, i] = self.mod.bm_list[i].samples.sdResid ** 2
-        self.emu_vars = self.mod_s2[self.ii]
-        self.yobs = None
-        self.marg_lik_cov = None
-        self.discrep_vars = None
-        self.nd = 0
-        self.discrep_tau = 1.0
-        self.D = None
-        self.discrep = 0.0
-        if exp_ind is None:
-            exp_ind = np.array(0)
-        self.nexp = exp_ind.max() + 1
-        self.exp_ind = exp_ind
-        self.s2 = s2
-        if s2 == "gibbs":
-            raise "Cannot use Gibbs s2 for emulator models."
-        return
-
-    def step(self):
-        self.ii = np.random.choice(range(self.nmcmc), 1).item()
-        self.emu_vars = self.mod_s2[self.ii]
-        return
-
-    def discrep_sample(self, yobs, pred, cov, itemp):
-        S = np.linalg.inv(
-            np.eye(self.nd) / self.discrep_tau + self.D.T @ cov["inv"] @ self.D
-        )
-        m = self.D.T @ cov["inv"] @ (yobs - pred)
-        discrep_vars = chol_sample(S @ m, S / itemp)
-        return discrep_vars
-
-    def eval(self, parmat, pool=None, nugget=False):
-        """
-        parmat : ~
-        """
-        parmat_array = np.vstack(
-            [parmat[v] for v in self.input_names]
-        ).T  # get correct subset/ordering of inputs
-        pred = self.mod.predict(
-            parmat_array, mcmc_use=np.array([self.ii]), nugget=nugget
-        )[0, :, :]
-
-        if pool is True:
-            return pred
-        else:
-            nrep = list(parmat.values())[0].shape[0] // self.nexp
-            return np.concatenate(
-                [
-                    pred[
-                        np.ix_(
-                            np.arange(i, nrep * self.nexp, self.nexp),
-                            np.where(self.exp_ind == i)[0],
-                        )
-                    ]
-                    for i in range(self.nexp)
-                ],
-                1,
-            )
-            # this is evaluating all experiments for all thetas, which is overkill
-
-    def llik(self, yobs, pred, cov):
-        vec = yobs - pred
-        out = -0.5 * (cov["ldet"] + vec.T @ cov["inv"] @ vec)
-        return out
-
-    def lik_cov_inv(self, s2vec):
-        vec = self.trunc_error_var + s2vec
-        Ainv = np.diag(1 / vec)
-        Aldet = np.log(vec).sum()
-        out = self.swm(
-            Ainv,
-            self.basis,
-            np.diag(1 / self.emu_vars),
-            self.basis.T,
-            Aldet,
-            np.log(self.emu_vars).sum(),
-        )
-        return out
-
-    def chol_solve(self, x):
-        mat = cho_factor(x)
-        ldet = 2 * np.sum(np.log(np.diag(mat[0])))
-        # inv = cho_solve(mat, np.eye(x.shape[0])) # correct, but slower for small dimension
-        inv = np.linalg.inv(x)
-        out = {"inv": inv, "ldet": ldet}
-        return out
-
-    def swm(
-        self, Ainv, U, Cinv, V, Aldet, Cldet
-    ):  # sherman woodbury morrison (A+UCV)^-1 and |A+UCV|
-        in_mat = self.chol_solve(Cinv + V @ Ainv @ U)
-        inv = Ainv - Ainv @ U @ in_mat["inv"] @ V @ Ainv
-        ldet = in_mat["ldet"] + Aldet + Cldet
-        out = {"inv": inv, "ldet": ldet}
-        return out
-
-
 class ModelmvBayes(AbstractModel):
     """
-    ModelmvBayes: mvBayes Emulator for Functional Outputs (can use different BASS/BPPR type emulators)
+    ModelmvBayes: mvBayes Emulator for Functional Outputs (can use different
+                  BASS/BPPR type emulators)
 
-    ModelmvBayes Handles larger-dimensional functional responses (e.g., on large spatial fields) using
-    various inversion tricks. We require any other covariance e.g., from discrepancy, measurement error, and basis truncation error)
-    to be diagnonal. Smaller-dimensional functional responses could be specified with non-diagonal covariances using ModelBpprPca_mult.
+    ModelmvBayes Handles larger-dimensional functional responses (e.g., on
+    large spatial fields) using
+    various inversion tricks. We require any other covariance e.g., from
+    discrepancy, measurement error, and basis truncation error)
+    to be diagnonal. Smaller-dimensional functional responses could be
+    specified with non-diagonal covariances using ModelBpprPca_mult.
     """
 
-    def __init__(self, bmod, input_names, exp_ind=None, s2="MH"):
+    def __init__(self, bmod, input_names, exp_ind=None, s2="MH", h=False):
         """
         bmod        : bassPCA fit
         input_names : list of the names of the inputs to bmod
-        s2          : method for handling experiment-specific noise s2; options are 'MH' (Metropolis-Hastings Sampling), 'fix' (fixed at s2_est from addVecExperiments call)
+        s2          : method for handling experiment-specific noise s2;
+                      options are 'MH' (Metropolis-Hastings Sampling),
+                      'fix' (fixed at s2_est from addVecExperiments call)
         """
         self.mod = bmod
         self.stochastic = True
@@ -642,420 +389,7 @@ class ModelmvBayes(AbstractModel):
     def chol_solve(self, x):
         mat = cho_factor(x)
         ldet = 2 * np.sum(np.log(np.diag(mat[0])))
-        # inv = cho_solve(mat, np.eye(x.shape[0])) # correct, but slower for small dimension
-        inv = np.linalg.inv(x)
-        out = {"inv": inv, "ldet": ldet}
-        return out
-
-    def swm(
-        self, Ainv, U, Cinv, V, Aldet, Cldet
-    ):  # sherman woodbury morrison (A+UCV)^-1 and |A+UCV|
-        in_mat = self.chol_solve(Cinv + V @ Ainv @ U)
-        inv = Ainv - Ainv @ U @ in_mat["inv"] @ V @ Ainv
-        ldet = in_mat["ldet"] + Aldet + Cldet
-        out = {"inv": inv, "ldet": ldet}
-        return out
-
-
-class ModelBassPca_func_elastic_h(AbstractModel):
-    """PCA Based Model Emulator"""
-
-    def __init__(self, bmod, bmod_warp, input_names, exp_ind=None, s2="MH"):
-        """
-        bmod        : ~
-        input_names : list of the names of the inputs to bmod
-        pool        : Whether using the pooled model
-        """
-        self.mod = bmod
-        self.mod_warp = bmod_warp
-        self.stochastic = True
-        self.nmcmc = len(bmod.bm_list[0].samples.s2)
-        self.input_names = input_names
-        self.basis = self.mod.basis
-        self.meas_error_cor = np.eye(self.basis.shape[0])
-        self.discrep_cov = np.eye(self.basis.shape[0]) * 1e-12
-        self.ii = 0
-        npc = self.mod.nbasis
-        if npc > 1:
-            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error)) + np.diag(
-                np.cov(self.mod_warp.trunc_error)
-            )
-        else:
-            self.trunc_error_var = np.diag(
-                np.cov(self.mod.trunc_error).reshape([1, 1])
-            ) + np.diag(np.cov(self.mod_warp.trunc_error).reshape([1, 1]))
-        self.mod_s2 = np.empty([self.nmcmc, npc])
-        for i in range(npc):
-            self.mod_s2[:, i] = self.mod.bm_list[i].samples.s2
-        self.emu_vars = self.mod_s2[self.ii]
-        self.yobs = None
-        self.marg_lik_cov = None
-        self.discrep_vars = None
-        self.nd = 0
-        self.discrep_tau = 1.0
-        self.D = None
-        self.discrep = 0.0
-        if exp_ind is None:
-            exp_ind = np.array(0)
-        self.nexp = exp_ind.max() + 1
-        self.exp_ind = exp_ind
-        self.s2 = s2
-        if s2 == "gibbs":
-            raise "Cannot use Gibbs s2 for emulator models."
-        return
-
-    def step(self):
-        self.ii = np.random.choice(range(self.nmcmc), 1).item()
-        self.emu_vars = self.mod_s2[self.ii]
-        return
-
-    def discrep_sample(self, yobs, pred, cov, itemp):
-        # if self.nd>0:
-        S = np.linalg.inv(
-            np.eye(self.nd) / self.discrep_tau + self.D.T @ cov["inv"] @ self.D
-        )
-        m = self.D.T @ cov["inv"] @ (yobs - pred)
-        discrep_vars = chol_sample(S @ m, S / itemp)
-        # self.discrep = self.D @ self.discrep_vars
-        return discrep_vars
-
-    def eval(self, parmat, pool=None, nugget=False):
-        """
-        parmat : ~
-        """
-        parmat_array = np.vstack(
-            [parmat[v] for v in self.input_names]
-        ).T  # get correct subset/ordering of inputs
-        predf = self.mod.predict(
-            parmat_array, mcmc_use=np.array([self.ii]), nugget=nugget
-        )[0, :, :]
-        predv = self.mod_warp.predict(
-            parmat_array, mcmc_use=np.array([self.ii]), nugget=nugget
-        )[0, :, :]
-        gam = fs.geometry.h_to_gam(predv.T)
-        pred = predf.copy()
-        for i in range(predf.shape[0]):
-            pred[i, :] = fs.warp_f_gamma(
-                np.linspace(0, 1, gam.shape[0]), predf[i, :], fs.invertGamma(gam[:, i])
-            )
-
-        if pool is True:
-            return pred
-        else:
-            raise "Non pooled is not tested."
-            nrep = list(parmat.values())[0].shape[0] // self.nexp
-            return np.concatenate(
-                [
-                    pred[
-                        np.ix_(
-                            np.arange(i, nrep * self.nexp, self.nexp),
-                            np.where(self.exp_ind == i)[0],
-                        )
-                    ]
-                    for i in range(self.nexp)
-                ],
-                1,
-            )
-            # this is evaluating all experiments for all thetas, which is overkill
-
-    def llik(self, yobs, pred, cov):
-        vec = yobs - pred
-        out = -0.5 * (cov["ldet"] + vec.T @ cov["inv"] @ vec)
-        return out
-
-    def lik_cov_inv(self, s2vec):
-        vec = self.trunc_error_var + s2vec
-        Ainv = np.diag(1 / vec)
-        Aldet = np.log(vec).sum()
-        out = self.swm(
-            Ainv,
-            self.basis,
-            np.diag(1 / self.emu_vars),
-            self.basis.T,
-            Aldet,
-            np.log(self.emu_vars).sum(),
-        )
-        return out
-
-    def chol_solve(self, x):
-        mat = cho_factor(x)
-        ldet = 2 * np.sum(np.log(np.diag(mat[0])))
-        # inv = cho_solve(mat, np.eye(x.shape[0])) # correct, but slower for small dimension
-        inv = np.linalg.inv(x)
-        out = {"inv": inv, "ldet": ldet}
-        return out
-
-    def swm(
-        self, Ainv, U, Cinv, V, Aldet, Cldet
-    ):  # sherman woodbury morrison (A+UCV)^-1 and |A+UCV|
-        in_mat = self.chol_solve(Cinv + V @ Ainv @ U)
-        inv = Ainv - Ainv @ U @ in_mat["inv"] @ V @ Ainv
-        ldet = in_mat["ldet"] + Aldet + Cldet
-        out = {"inv": inv, "ldet": ldet}
-        return out
-
-
-class ModelBassPca_func_elastic(AbstractModel):
-    """PCA Based Model Emulator"""
-
-    def __init__(self, bmod, bmod_warp, input_names, exp_ind=None, s2="MH"):
-        """
-        bmod        : ~
-        input_names : list of the names of the inputs to bmod
-        pool        : Whether using the pooled model
-        """
-        self.mod = bmod
-        self.mod_warp = bmod_warp
-        self.stochastic = True
-        self.nmcmc = len(bmod.bm_list[0].samples.s2)
-        self.input_names = input_names
-        self.basis = self.mod.basis
-        self.meas_error_cor = np.eye(self.basis.shape[0])
-        self.discrep_cov = np.eye(self.basis.shape[0]) * 1e-12
-        self.ii = 0
-        npc = self.mod.nbasis
-        if npc > 1:
-            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error)) + np.diag(
-                np.cov(self.mod_warp.trunc_error)
-            )
-        else:
-            self.trunc_error_var = np.diag(
-                np.cov(self.mod.trunc_error).reshape([1, 1])
-            ) + np.diag(np.cov(self.mod_warp.trunc_error).reshape([1, 1]))
-        self.mod_s2 = np.empty([self.nmcmc, npc])
-        for i in range(npc):
-            self.mod_s2[:, i] = self.mod.bm_list[i].samples.s2
-        self.emu_vars = self.mod_s2[self.ii]
-        self.yobs = None
-        self.marg_lik_cov = None
-        self.discrep_vars = None
-        self.nd = 0
-        self.discrep_tau = 1.0
-        self.D = None
-        self.discrep = 0.0
-        if exp_ind is None:
-            exp_ind = np.array(0)
-        self.nexp = exp_ind.max() + 1
-        self.exp_ind = exp_ind
-        self.s2 = s2
-        if s2 == "gibbs":
-            raise "Cannot use Gibbs s2 for emulator models."
-        return
-
-    def step(self):
-        self.ii = np.random.choice(range(self.nmcmc), 1).item()
-        self.emu_vars = self.mod_s2[self.ii]
-        return
-
-    def discrep_sample(self, yobs, pred, cov, itemp):
-        # if self.nd>0:
-        S = np.linalg.inv(
-            np.eye(self.nd) / self.discrep_tau + self.D.T @ cov["inv"] @ self.D
-        )
-        m = self.D.T @ cov["inv"] @ (yobs - pred)
-        discrep_vars = chol_sample(S @ m, S / itemp)
-        # self.discrep = self.D @ self.discrep_vars
-        return discrep_vars
-
-    def eval(self, parmat, pool=None, nugget=False):
-        """
-        parmat : ~
-        """
-        parmat_array = np.vstack(
-            [parmat[v] for v in self.input_names]
-        ).T  # get correct subset/ordering of inputs
-        predf = self.mod.predict(
-            parmat_array, mcmc_use=np.array([self.ii]), nugget=nugget
-        )[0, :, :]
-        predv = self.mod_warp.predict(
-            parmat_array, mcmc_use=np.array([self.ii]), nugget=nugget
-        )[0, :, :]
-        gam = fs.geometry.v_to_gam(predv.T)
-        pred = predf.copy()
-        for i in range(predf.shape[0]):
-            pred[i, :] = fs.warp_f_gamma(
-                np.linspace(0, 1, gam.shape[0]), predf[i, :], fs.invertGamma(gam[:, i])
-            )
-
-        if pool is True:
-            return pred
-        else:
-            raise "Non pooled is not tested."
-            nrep = list(parmat.values())[0].shape[0] // self.nexp
-            return np.concatenate(
-                [
-                    pred[
-                        np.ix_(
-                            np.arange(i, nrep * self.nexp, self.nexp),
-                            np.where(self.exp_ind == i)[0],
-                        )
-                    ]
-                    for i in range(self.nexp)
-                ],
-                1,
-            )
-            # this is evaluating all experiments for all thetas, which is overkill
-
-    def llik(self, yobs, pred, cov):
-        vec = yobs - pred
-        out = -0.5 * (cov["ldet"] + vec.T @ cov["inv"] @ vec)
-        return out
-
-    def lik_cov_inv(self, s2vec):
-        vec = self.trunc_error_var + s2vec
-        Ainv = np.diag(1 / vec)
-        Aldet = np.log(vec).sum()
-        out = self.swm(
-            Ainv,
-            self.basis,
-            np.diag(1 / self.emu_vars),
-            self.basis.T,
-            Aldet,
-            np.log(self.emu_vars).sum(),
-        )
-        return out
-
-    def chol_solve(self, x):
-        mat = cho_factor(x)
-        ldet = 2 * np.sum(np.log(np.diag(mat[0])))
-        # inv = cho_solve(mat, np.eye(x.shape[0])) # correct, but slower for small dimension
-        inv = np.linalg.inv(x)
-        out = {"inv": inv, "ldet": ldet}
-        return out
-
-    def swm(
-        self, Ainv, U, Cinv, V, Aldet, Cldet
-    ):  # sherman woodbury morrison (A+UCV)^-1 and |A+UCV|
-        in_mat = self.chol_solve(Cinv + V @ Ainv @ U)
-        inv = Ainv - Ainv @ U @ in_mat["inv"] @ V @ Ainv
-        ldet = in_mat["ldet"] + Aldet + Cldet
-        out = {"inv": inv, "ldet": ldet}
-        return out
-
-
-class ModelBpprPca_func_elastic(AbstractModel):
-    """PCA Based Model Emulator"""
-
-    def __init__(self, bmod, bmod_warp, input_names, exp_ind=None, s2="MH"):
-        """
-        bmod        : ~
-        input_names : list of the names of the inputs to bmod
-        pool        : Whether using the pooled model
-        """
-        self.mod = bmod
-        self.mod_warp = bmod_warp
-        self.stochastic = True
-        self.nmcmc = len(bmod.bm_list[0].samples.sdResid)
-        self.input_names = input_names
-        self.basis = self.mod.basis
-        self.meas_error_cor = np.eye(self.basis.shape[0])
-        self.discrep_cov = np.eye(self.basis.shape[0]) * 1e-12
-        self.ii = 0
-        npc = self.mod.nbasis
-        if npc > 1:
-            self.trunc_error_var = np.diag(np.cov(self.mod.trunc_error)) + np.diag(
-                np.cov(self.mod_warp.trunc_error)
-            )
-        else:
-            self.trunc_error_var = np.diag(
-                np.cov(self.mod.trunc_error).reshape([1, 1])
-            ) + np.diag(np.cov(self.mod_warp.trunc_error).reshape([1, 1]))
-        self.mod_s2 = np.empty([self.nmcmc, npc])
-        for i in range(npc):
-            self.mod_s2[:, i] = self.mod.bm_list[i].samples.sdResid ** 2
-        self.emu_vars = self.mod_s2[self.ii]
-        self.yobs = None
-        self.marg_lik_cov = None
-        self.discrep_vars = None
-        self.nd = 0
-        self.discrep_tau = 1.0
-        self.D = None
-        self.discrep = 0.0
-        if exp_ind is None:
-            exp_ind = np.array(0)
-        self.nexp = exp_ind.max() + 1
-        self.exp_ind = exp_ind
-        self.s2 = s2
-        if s2 == "gibbs":
-            raise "Cannot use Gibbs s2 for emulator models."
-        return
-
-    def step(self):
-        self.ii = np.random.choice(range(self.nmcmc), 1).item()
-        self.emu_vars = self.mod_s2[self.ii]
-        return
-
-    def discrep_sample(self, yobs, pred, cov, itemp):
-        # if self.nd>0:
-        S = np.linalg.inv(
-            np.eye(self.nd) / self.discrep_tau + self.D.T @ cov["inv"] @ self.D
-        )
-        m = self.D.T @ cov["inv"] @ (yobs - pred)
-        discrep_vars = chol_sample(S @ m, S / itemp)
-        return discrep_vars
-
-    def eval(self, parmat, pool=None, nugget=False):
-        """
-        parmat : ~
-        """
-        parmat_array = np.vstack(
-            [parmat[v] for v in self.input_names]
-        ).T  # get correct subset/ordering of inputs
-        predf = self.mod.predict(
-            parmat_array, mcmc_use=np.array([self.ii]), nugget=nugget
-        )[0, :, :]
-        predv = self.mod_warp.predict(
-            parmat_array, mcmc_use=np.array([self.ii]), nugget=nugget
-        )[0, :, :]
-        gam = fs.geometry.v_to_gam(predv.T)
-        pred = predf.copy()
-        for i in range(predf.shape[0]):
-            pred[i, :] = fs.warp_f_gamma(
-                np.linspace(0, 1, gam.shape[0]), predf[i, :], fs.invertGamma(gam[:, i])
-            )
-
-        if pool is True:
-            return pred
-        else:
-            raise "Non pooled is not tested."
-            nrep = list(parmat.values())[0].shape[0] // self.nexp
-            return np.concatenate(
-                [
-                    pred[
-                        np.ix_(
-                            np.arange(i, nrep * self.nexp, self.nexp),
-                            np.where(self.exp_ind == i)[0],
-                        )
-                    ]
-                    for i in range(self.nexp)
-                ],
-                1,
-            )
-            # this is evaluating all experiments for all thetas, which is overkill
-
-    def llik(self, yobs, pred, cov):
-        vec = yobs - pred
-        out = -0.5 * (cov["ldet"] + vec.T @ cov["inv"] @ vec)
-        return out
-
-    def lik_cov_inv(self, s2vec):
-        vec = self.trunc_error_var + s2vec
-        Ainv = np.diag(1 / vec)
-        Aldet = np.log(vec).sum()
-        out = self.swm(
-            Ainv,
-            self.basis,
-            np.diag(1 / self.emu_vars),
-            self.basis.T,
-            Aldet,
-            np.log(self.emu_vars).sum(),
-        )
-        return out
-
-    def chol_solve(self, x):
-        mat = cho_factor(x)
-        ldet = 2 * np.sum(np.log(np.diag(mat[0])))
-        # inv = cho_solve(mat, np.eye(x.shape[0])) # correct, but slower for small dimension
+        # inv = cho_solve(mat, np.eye(x.shape[0])) # slow
         inv = np.linalg.inv(x)
         out = {"inv": inv, "ldet": ldet}
         return out
@@ -1073,7 +407,8 @@ class ModelBpprPca_func_elastic(AbstractModel):
 class ModelmvBayes_elastic(AbstractModel):
     """PCA Based Model Emulator"""
 
-    def __init__(self, bmod, bmod_warp, input_names, exp_ind=None, s2="MH"):
+    def __init__(self, bmod, bmod_warp, input_names, exp_ind=None, s2="MH", 
+                 h=False):
         """
         bmod        : ~
         input_names : list of the names of the inputs to bmod
@@ -1105,6 +440,7 @@ class ModelmvBayes_elastic(AbstractModel):
         self.marg_lik_cov = None
         self.discrep_vars = None
         self.nd = 0
+        self.h = h
         self.discrep_tau = 1.0
         self.D = None
         self.discrep = 0.0
@@ -1131,7 +467,7 @@ class ModelmvBayes_elastic(AbstractModel):
         discrep_vars = chol_sample(S @ m, S / itemp)
         return discrep_vars
 
-    def eval(self, parmat, pool=None, nugget=False):
+    def eval(self, parmat, pool=True, nugget=False):
         """
         parmat : ~
         """
@@ -1142,7 +478,10 @@ class ModelmvBayes_elastic(AbstractModel):
         predv = self.mod_warp.predict(parmat_array, mcmc_use=np.array([self.ii]))[
             0, :, :
         ]
-        gam = fs.geometry.v_to_gam(predv.T)
+        if self.h is True:
+            gam = fs.geometry.h_to_gam(predv.T)
+        else:
+            gam = fs.geometry.v_to_gam(predv.T)
         pred = predf.copy()
         for i in range(predf.shape[0]):
             pred[i, :] = fs.warp_f_gamma(
@@ -1166,7 +505,8 @@ class ModelmvBayes_elastic(AbstractModel):
                 ],
                 1,
             )
-            # this is evaluating all experiments for all thetas, which is overkill
+            # this is evaluating all experiments for all thetas, 
+            # which is overkill
 
     def llik(self, yobs, pred, cov):
         vec = yobs - pred
@@ -1190,7 +530,7 @@ class ModelmvBayes_elastic(AbstractModel):
     def chol_solve(self, x):
         mat = cho_factor(x)
         ldet = 2 * np.sum(np.log(np.diag(mat[0])))
-        # inv = cho_solve(mat, np.eye(x.shape[0])) # correct, but slower for small dimension
+        # inv = cho_solve(mat, np.eye(x.shape[0])) # slow
         inv = np.linalg.inv(x)
         out = {"inv": inv, "ldet": ldet}
         return out
@@ -1212,9 +552,15 @@ class ModelF(AbstractModel):
         self, f, input_names, exp_ind=None, s2="gibbs"
     ):  # not sure if this is vectorized
         """
-        f           : user-defined function taking single input with elements x[0] = first element of theta, x[1] = second element of theta, etc. Function must output predictions for all observations
+        f           : user-defined function taking single input with elements 
+                      x[0] = first element of theta, x[1] = second element of 
+                      theta, etc. Function must output predictions for all 
+                      observations
         input_names : list of the names of the inputs to bmod
-        s2          : method for handling experiment-specific noise s2; options are 'MH' (Metropolis-Hastings Sampling), 'fix' (fixed at s2_est from addVecExperiments call), and 'gibbs' (Gibbs sampling)
+        s2          : method for handling experiment-specific noise s2; 
+                      options are 'MH' (Metropolis-Hastings Sampling), 'fix' 
+                      (fixed at s2_est from addVecExperiments call), and 
+                      'gibbs' (Gibbs sampling)
         """
         self.mod = f
         self.input_names = input_names
@@ -1253,21 +599,20 @@ class ModelF(AbstractModel):
                 1,
             )
             return out_sub
-            # this is evaluating all experiments for all thetas, which is overkill
-        # need to have some way of dealing with non-pooled eval fo this and bassPCA version
 
-    def discrep_sample(self, yobs, pred, cov, itemp):  # Added by Lauren on 11/17/23.
+    def discrep_sample(self, yobs, pred, cov, itemp): 
         S = np.linalg.inv(
             np.eye(self.nd) / self.discrep_tau  # defined by addVecExperiments
             + self.D.T @ (cov["inv"].flatten() * np.eye(len(yobs))) @ self.D
         )
         m = self.D.T @ (cov["inv"] * np.eye(len(yobs))) @ (yobs - pred)
-        discrep_vars = sc.chol_sample(S @ m, S / itemp)
+        discrep_vars = chol_sample(S @ m, S / itemp)
         return discrep_vars
 
 
 #######
-### ModelF_bigdata: Function for Simulator Model Evaluation or Evaluation of Alternative Emulator Model using Bigger Data
+# ModelF_bigdata: Function for Simulator Model Evaluation or Evaluation of 
+# Alternative Emulator Model using Bigger Data
 class ModelF_bigdata(AbstractModel):
     """Custom Simulator/Emulator Model"""
 
@@ -1275,9 +620,15 @@ class ModelF_bigdata(AbstractModel):
         self, f, input_names, exp_ind=None, s2="gibbs"
     ):  # not sure if this is vectorized
         """
-        f           : user-defined function taking single input with elements x[0] = first element of theta, x[1] = second element of theta, etc. Function must output predictions for all observations
+        f           : user-defined function taking single input with elements 
+                      x[0] = first element of theta, x[1] = second element of 
+                      theta, etc. Function must output predictions for all 
+                      observations
         input_names : list of the names of the inputs to bmod
-        s2          : method for handling experiment-specific noise s2; options are 'MH' (Metropolis-Hastings Sampling), 'fix' (fixed at s2_est from addVecExperiments call), and 'gibbs' (Gibbs sampling)
+        s2          : method for handling experiment-specific noise s2; 
+                      options are 'MH' (Metropolis-Hastings Sampling), 'fix' 
+                      (fixed at s2_est from addVecExperiments call), and 
+                      'gibbs' (Gibbs sampling)
         """
         self.mod = f
         self.input_names = input_names
@@ -1290,8 +641,8 @@ class ModelF_bigdata(AbstractModel):
         self.exp_ind = exp_ind
         self.nd = 0
         self.s2 = s2
-        self.vec = np.linspace(1, 16200, 16200)  # define to speed up llik evaluation
-        self.vec2 = np.linspace(1, 16200, 16200)  # define to speed up llik evaluation
+        self.vec = np.linspace(1, 16200, 16200)  
+        self.vec2 = np.linspace(1, 16200, 16200)  
         self.inv = np.linspace(
             1, 16200, 16200
         )  # define to speed up lik_cov_inv evaluation
@@ -1313,7 +664,6 @@ class ModelF_bigdata(AbstractModel):
             nrep = list(parmat.values())[0].shape[0] // self.nexp
             out_all = np.apply_along_axis(self.mod, 1, parmat_array)
 
-            # out_sub = np.concatenate([out_all[(i*nrep):(i*nrep+nrep), self.exp_ind==i] for i in range(self.nexp)], 1)
             out_sub = np.concatenate(
                 [
                     out_all[
@@ -1327,10 +677,8 @@ class ModelF_bigdata(AbstractModel):
                 1,
             )
             return out_sub
-            # this is evaluating all experiments for all thetas, which is overkill
-        # need to have some way of dealing with non-pooled eval fo this and bassPCA version
 
-    def discrep_sample(self, yobs, pred, cov, itemp):  # Added by Lauren on 11/17/23.
+    def discrep_sample(self, yobs, pred, cov, itemp):  
         self.vec = cov["inv"].reshape(-1, 1) * (yobs - pred).reshape(-1, 1)
         self.vmat = np.repeat(cov["inv"].reshape(-1, 1), self.nd, axis=1) * self.D
         S = np.linalg.inv(
@@ -1341,7 +689,7 @@ class ModelF_bigdata(AbstractModel):
             + self.D.T @ self.vmat
         )
         self.m = self.D.T @ self.vec
-        discrep_vars = sc.chol_sample((S @ self.m).flatten(), S / itemp)
+        discrep_vars = chol_sample((S @ self.m).flatten(), S / itemp)
         return discrep_vars
 
     def llik(self, yobs, pred, cov):  # assumes diagonal cov
@@ -1358,8 +706,8 @@ class ModelF_bigdata(AbstractModel):
 
 
 #######
-### ModelMaterialStrength: PTW Model for Hopi-Bar / Quasistatic Experiments
-epsilon = 1e-5  # used in ModelMaterialStrength to pad set of strains for evaluate for each experiment, user can ignore
+# ModelMaterialStrength: PTW Model for Hopi-Bar / Quasistatic Experiments
+epsilon = 1e-5  # used in ModelMaterialStrength to pad set of strains 
 
 
 class ModelMaterialStrength(AbstractModel):
@@ -1384,10 +732,15 @@ class ModelMaterialStrength(AbstractModel):
         s2="gibbs",
     ):
         """
-        temps               : list of temperatures indexed by experiment (units = Kelvin)
-        edots               : edots: list of strain rates indexed by experiment (units = NEED TO ADD)
-        consts              : dictionary of constants for PTW model. Use showdef_ModelMaterialStrength(str_func_name) to figure out the needed constants
-        strain_histories    : List of strain histories for HB/Quasistatic Experiments
+        temps               : list of temperatures indexed by experiment 
+                              (units = Kelvin)
+        edots               : edots: list of strain rates indexed by 
+                              experiment (units = NEED TO ADD)
+        consts              : dictionary of constants for PTW model. Use 
+                              showdef_ModelMaterialStrength(str_func_name) 
+                              to figure out the needed constants
+        strain_histories    : List of strain histories for HB/Quasistatic 
+                              Experiments
         flow_stress_model   : options provided by getoptions_ModelMaterialStrength()['flow_stress_model']
         melt_model          : options provided by getoptions_ModelMaterialStrength()['melt_model']
         shear_model         : options provided by getoptions_ModelMaterialStrength()['shear_model']
@@ -1442,8 +795,8 @@ class ModelMaterialStrength(AbstractModel):
             )  # number of temper temps
             parmat_big = parmat
 
-        edots = np.kron(np.ones(nrep), self.edots)  # 1d vector, nexp * temper_temps
-        temps = np.kron(np.ones(nrep), self.temps)  # 1d vector, nexp * temper_temps
+        edots = np.kron(np.ones(nrep), self.edots)  
+        temps = np.kron(np.ones(nrep), self.temps)  
         strain_maxs = np.kron(
             np.ones(nrep), self.meas_strain_max
         )  # 1d vector, nexp * temper_temps
@@ -1468,11 +821,12 @@ class ModelMaterialStrength(AbstractModel):
         )
         # Expand/flatten simulated stress to single vector
         flattened_sim_stress = np.hstack(sim_stresses)
-        # Expand/flatten measured strain to single vector, for each parameter.  Use same
-        #  Computed strain ends to ensure no overlap
+        # Expand/flatten measured strain to single vector, for each parameter.  
+        # Use same Computed strain ends to ensure no overlap
         flattened_strain = (
             np.hstack(  # cycle will repeat through measured strain histories
-                [x + y for x, y in zip(cycle(self.meas_strain_histories), strain_ends)]
+                [x + y for x, y in zip(cycle(self.meas_strain_histories), 
+                                       strain_ends)]
             )
         )
         ifunc = interp1d(  # Generate the interpolation function.
@@ -1481,7 +835,7 @@ class ModelMaterialStrength(AbstractModel):
             kind="linear",
             assume_sorted=True,
         )
-        ypred = ifunc(flattened_strain).reshape(nrep, -1)  # Interpolate, and output.
+        ypred = ifunc(flattened_strain).reshape(nrep, -1) 
         return ypred
 
 
@@ -1492,7 +846,8 @@ def interpolate_experiment(args):
 
 
 #######
-### getoptions_ModelMaterialStrength: Provides current options for ModelMaterialStrength physical models
+# getoptions_ModelMaterialStrength: 
+# Provides current options for ModelMaterialStrength physical models
 def getoptions_ModelMaterialStrength():
     import impala
     import re
@@ -1519,10 +874,13 @@ def getoptions_ModelMaterialStrength():
 
 
 #######
-### showdef_ModelMaterialStrength: Shows the definition for a given ModelMaterialStrength function listed in getoptions_ModelMaterialStrength()
+# showdef_ModelMaterialStrength: Shows the definition for a given 
+# ModelMaterialStrength function listed in getoptions_ModelMaterialStrength()
 def showdef_ModelMaterialStrength(func_name):
     """
-    func_name: string listing a function listed in get_ModelMaterialStrength_options(), e.g., showdef_ModelMaterialStrength('Linear_Specific_Heat')
+    func_name: string listing a function listed in 
+               get_ModelMaterialStrength_options(), e.g., 
+               showdef_ModelMaterialStrength('Linear_Specific_Heat')
     """
     import impala
     import inspect

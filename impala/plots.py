@@ -3,7 +3,6 @@ from math import ceil, sqrt
 from pygments import highlight
 
 # from models_withLik import interpolate_experiment
-from impala.superCal import interpolate_experiment
 import seaborn as sns
 import numpy as np
 import impala.superCal as impala

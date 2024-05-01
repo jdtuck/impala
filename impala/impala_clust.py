@@ -1,25 +1,16 @@
 import numpy as np
 import time
 import scipy
-from scipy import stats
-from scipy.special import multigammaln
-from numpy.random import uniform, normal, beta, choice, gamma
-from math import sqrt, floor, log
-from scipy.special import erf, erfinv, gammaln
+from numpy.random import uniform, beta, choice, gamma
+from math import sqrt
 from scipy.stats import invwishart
-from numpy.linalg import cholesky, slogdet
-from itertools import repeat
+from numpy.linalg import slogdet
 import multiprocessing as mp
 import impala_noProbit_emu as impa
 from collections import namedtuple
-import pbar
-
-# np.seterr(under='ignore')
-
-# no probit tranform for hierarchical and DP versions
 
 
-##############################################################################################################################################################################
+###############################################################################
 def bincount2D_vectorized(a, max_count):
     """
     Applies np.bincount across a 2d array (row-wise).
