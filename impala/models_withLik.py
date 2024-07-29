@@ -301,12 +301,13 @@ class ModelmvBayes(AbstractModel):
         self.meas_error_cor = np.eye(self.basis.shape[0])
         self.discrep_cov = np.eye(self.basis.shape[0]) * 1e-12
         self.ii = 0
-        if npc > 1:
-            self.trunc_error_var = np.diag(np.cov(self.mod.basisInfo.truncError.T))
-        else:
-            self.trunc_error_var = np.diag(
-                np.cov(self.mod.basisInfo.truncError.T).reshape([1, 1])
-            )
+        # if npc > 1:
+        #     self.trunc_error_var = np.diag(np.cov(self.mod.basisInfo.truncError.T))
+        # else:
+        #     self.trunc_error_var = np.diag(
+        #         np.cov(self.mod.basisInfo.truncError.T).reshape([1, 1])
+        #     )
+        self.trunc_error_cov = np.cov(self.mod.basisInfo.truncError.T)
         self.mod_s2 = np.empty([self.nmcmc, npc])
         for i in range(npc):
             self.mod_s2[:, i] = self.mod.bmList[i].samples.s2
@@ -372,34 +373,54 @@ class ModelmvBayes(AbstractModel):
         out = -0.5 * (cov["ldet"] + vec.T @ cov["inv"] @ vec)
         return out
 
+    # def lik_cov_inv(self, s2vec):
+    #     vec = self.trunc_error_var + s2vec
+    #     Ainv = np.diag(1 / vec)
+    #     Aldet = np.log(vec).sum()
+    #     out = self.swm(
+    #         Ainv,
+    #         self.basis,
+    #         np.diag(1 / self.emu_vars),
+    #         self.basis.T,
+    #         Aldet,
+    #         np.log(self.emu_vars).sum(),
+    #     )
+    #     return out
+
+    # def chol_solve(self, x):
+    #     mat = cho_factor(x)
+    #     ldet = 2 * np.sum(np.log(np.diag(mat[0])))
+    #     # inv = cho_solve(mat, np.eye(x.shape[0])) # slow
+    #     inv = np.linalg.inv(x)
+    #     out = {"inv": inv, "ldet": ldet}
+    #     return out
+
+    # def swm(
+    #     self, Ainv, U, Cinv, V, Aldet, Cldet
+    # ):  # sherman woodbury morrison (A+UCV)^-1 and |A+UCV|
+    #     in_mat = self.chol_solve(Cinv + V @ Ainv @ U)
+    #     inv = Ainv - Ainv @ U @ in_mat["inv"] @ V @ Ainv
+    #     ldet = in_mat["ldet"] + Aldet + Cldet
+    #     out = {"inv": inv, "ldet": ldet}
+    #     return out
+
+
     def lik_cov_inv(self, s2vec):
-        vec = self.trunc_error_var + s2vec
-        Ainv = np.diag(1 / vec)
-        Aldet = np.log(vec).sum()
-        out = self.swm(
-            Ainv,
-            self.basis,
-            np.diag(1 / self.emu_vars),
-            self.basis.T,
-            Aldet,
-            np.log(self.emu_vars).sum(),
+        n = len(s2vec)
+        Sigma = cor2cov(
+            self.meas_error_cor[:n, :n], np.sqrt(s2vec)
+        )  # :n is a hack for when ntheta>1 in heir...fix this sometime
+        mat = (
+            Sigma
+            + self.trunc_error_cov
+            + self.discrep_cov
+            + self.basis @ np.diag(self.emu_vars) @ self.basis.T
         )
-        return out
-
-    def chol_solve(self, x):
-        mat = cho_factor(x)
-        ldet = 2 * np.sum(np.log(np.diag(mat[0])))
-        # inv = cho_solve(mat, np.eye(x.shape[0])) # slow
-        inv = np.linalg.inv(x)
-        out = {"inv": inv, "ldet": ldet}
-        return out
-
-    def swm(
-        self, Ainv, U, Cinv, V, Aldet, Cldet
-    ):  # sherman woodbury morrison (A+UCV)^-1 and |A+UCV|
-        in_mat = self.chol_solve(Cinv + V @ Ainv @ U)
-        inv = Ainv - Ainv @ U @ in_mat["inv"] @ V @ Ainv
-        ldet = in_mat["ldet"] + Aldet + Cldet
+        # this doesnt work for vectorized experiments...maybe dont allow those for BASS
+        chol = cholesky(mat)
+        ldet = 2 * np.sum(np.log(np.diag(chol)))
+        # la.dpotri(chol, overwrite_c=True) # overwrites chol with original matrix inverse
+        inv = np.linalg.inv(mat)
         out = {"inv": inv, "ldet": ldet}
         return out
 
@@ -424,14 +445,15 @@ class ModelmvBayes_elastic(AbstractModel):
         self.meas_error_cor = np.eye(self.basis.shape[0])
         self.discrep_cov = np.eye(self.basis.shape[0]) * 1e-12
         self.ii = 0
-        if npc > 1:
-            self.trunc_error_var = np.diag(
-                np.cov(self.mod.basisInfo.truncError.T)
-            ) + np.diag(np.cov(self.mod_warp.basisInfo.truncError.T))
-        else:
-            self.trunc_error_var = np.diag(
-                np.cov(self.mod.basisInfo.truncError.T).reshape([1, 1])
-            ) + np.diag(np.cov(self.mod_warp.basisInfo.truncError.T).reshape([1, 1]))
+        # if npc > 1:
+        #     self.trunc_error_var = np.diag(
+        #         np.cov(self.mod.basisInfo.truncError.T)
+        #     ) + np.diag(np.cov(self.mod_warp.basisInfo.truncError.T))
+        # else:
+        #     self.trunc_error_var = np.diag(
+        #         np.cov(self.mod.basisInfo.truncError.T).reshape([1, 1])
+        #     ) + np.diag(np.cov(self.mod_warp.basisInfo.truncError.T).reshape([1, 1]))
+        self.trunc_error_cov = np.cov(self.mod.basisInfo.truncError.T) + np.cov(self.mod_warp.basisInfo.truncError.T)
         self.mod_s2 = np.empty([self.nmcmc, npc])
         for i in range(npc):
             self.mod_s2[:, i] = self.mod.bmList[i].samples.s2
@@ -513,34 +535,53 @@ class ModelmvBayes_elastic(AbstractModel):
         out = -0.5 * (cov["ldet"] + vec.T @ cov["inv"] @ vec)
         return out
 
+    # def lik_cov_inv(self, s2vec):
+    #     vec = self.trunc_error_var + s2vec
+    #     Ainv = np.diag(1 / vec)
+    #     Aldet = np.log(vec).sum()
+    #     out = self.swm(
+    #         Ainv,
+    #         self.basis,
+    #         np.diag(1 / self.emu_vars),
+    #         self.basis.T,
+    #         Aldet,
+    #         np.log(self.emu_vars).sum(),
+    #     )
+    #     return out
+
+    # def chol_solve(self, x):
+    #     mat = cho_factor(x)
+    #     ldet = 2 * np.sum(np.log(np.diag(mat[0])))
+    #     # inv = cho_solve(mat, np.eye(x.shape[0])) # slow
+    #     inv = np.linalg.inv(x)
+    #     out = {"inv": inv, "ldet": ldet}
+    #     return out
+
+    # def swm(
+    #     self, Ainv, U, Cinv, V, Aldet, Cldet
+    # ):  # sherman woodbury morrison (A+UCV)^-1 and |A+UCV|
+    #     in_mat = self.chol_solve(Cinv + V @ Ainv @ U)
+    #     inv = Ainv - Ainv @ U @ in_mat["inv"] @ V @ Ainv
+    #     ldet = in_mat["ldet"] + Aldet + Cldet
+    #     out = {"inv": inv, "ldet": ldet}
+    #     return out
+    
     def lik_cov_inv(self, s2vec):
-        vec = self.trunc_error_var + s2vec
-        Ainv = np.diag(1 / vec)
-        Aldet = np.log(vec).sum()
-        out = self.swm(
-            Ainv,
-            self.basis,
-            np.diag(1 / self.emu_vars),
-            self.basis.T,
-            Aldet,
-            np.log(self.emu_vars).sum(),
+        n = len(s2vec)
+        Sigma = cor2cov(
+            self.meas_error_cor[:n, :n], np.sqrt(s2vec)
+        )  # :n is a hack for when ntheta>1 in heir...fix this sometime
+        mat = (
+            Sigma
+            + self.trunc_error_cov
+            + self.discrep_cov
+            + self.basis @ np.diag(self.emu_vars) @ self.basis.T
         )
-        return out
-
-    def chol_solve(self, x):
-        mat = cho_factor(x)
-        ldet = 2 * np.sum(np.log(np.diag(mat[0])))
-        # inv = cho_solve(mat, np.eye(x.shape[0])) # slow
-        inv = np.linalg.inv(x)
-        out = {"inv": inv, "ldet": ldet}
-        return out
-
-    def swm(
-        self, Ainv, U, Cinv, V, Aldet, Cldet
-    ):  # sherman woodbury morrison (A+UCV)^-1 and |A+UCV|
-        in_mat = self.chol_solve(Cinv + V @ Ainv @ U)
-        inv = Ainv - Ainv @ U @ in_mat["inv"] @ V @ Ainv
-        ldet = in_mat["ldet"] + Aldet + Cldet
+        # this doesnt work for vectorized experiments...maybe dont allow those for BASS
+        chol = cholesky(mat)
+        ldet = 2 * np.sum(np.log(np.diag(chol)))
+        # la.dpotri(chol, overwrite_c=True) # overwrites chol with original matrix inverse
+        inv = np.linalg.inv(mat)
         out = {"inv": inv, "ldet": ldet}
         return out
 
