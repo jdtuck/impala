@@ -507,7 +507,7 @@ class ModelmvBayes_elastic(AbstractModel):
         pred = predf.copy()
         for i in range(predf.shape[0]):
             pred[i, :] = fs.warp_f_gamma(
-                np.linspace(0, 1, gam.shape[0]), predf[i, :], fs.invertGamma(gam[:, i])
+                np.linspace(0, 1, gam.shape[0]), predf[i, :], gam[:, i]
             )
 
         if pool is True:
