@@ -297,7 +297,7 @@ class ModelmvBayes(AbstractModel):
         self.nmcmc = len(bmod.bmList[0].samples.s2)
         self.input_names = input_names
         npc = self.mod.basisInfo.nBasis
-        self.basis = self.mod.basisInfo.basis[:npc, :].T
+        self.basis = self.mod.basisInfo.Ybasis[:npc, :].T
         self.meas_error_cor = np.eye(self.basis.shape[0])
         self.discrep_cov = np.eye(self.basis.shape[0]) * 1e-12
         self.ii = 0
@@ -441,7 +441,7 @@ class ModelmvBayes_elastic(AbstractModel):
         self.nmcmc = len(bmod.bmList[0].samples.s2)
         self.input_names = input_names
         npc = self.mod.basisInfo.nBasis
-        self.basis = self.mod.basisInfo.basis[:npc, :].T
+        self.basis = self.mod.basisInfo.Ybasis[:npc, :].T
         self.meas_error_cor = np.eye(self.basis.shape[0])
         self.discrep_cov = np.eye(self.basis.shape[0]) * 1e-12
         self.ii = 0
