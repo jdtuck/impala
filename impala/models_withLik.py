@@ -32,7 +32,7 @@ def chol_sample(mean, cov):
 
 
 #####################
-# Model Classes     # 
+# Model Classes     #
 #####################
 
 
@@ -69,7 +69,7 @@ class AbstractModel:
 
 
 #######
-# ModelBassPca_mult: Model with BASS Emulator from pyBASS with 
+# ModelBassPca_mult: Model with BASS Emulator from pyBASS with
 # Multivariate Output
 class ModelBassPca_mult(AbstractModel):
     """
@@ -171,7 +171,7 @@ class ModelBassPca_mult(AbstractModel):
 
 #######
 # ModelBpprPca_mult: Model with BayesPPR Emulator with Multivariate Output
-# Not recommended for larger-dimensional functional outputs: instead, 
+# Not recommended for larger-dimensional functional outputs: instead,
 # use ModelBpprPca_func
 class ModelBpprPca_mult(AbstractModel):
     """
@@ -404,7 +404,6 @@ class ModelmvBayes(AbstractModel):
     #     out = {"inv": inv, "ldet": ldet}
     #     return out
 
-
     def lik_cov_inv(self, s2vec):
         n = len(s2vec)
         Sigma = cor2cov(
@@ -428,8 +427,7 @@ class ModelmvBayes(AbstractModel):
 class ModelmvBayes_elastic(AbstractModel):
     """PCA Based Model Emulator"""
 
-    def __init__(self, bmod, bmod_warp, input_names, exp_ind=None, s2="MH", 
-                 h=False):
+    def __init__(self, bmod, bmod_warp, input_names, exp_ind=None, s2="MH", h=False):
         """
         bmod        : ~
         input_names : list of the names of the inputs to bmod
@@ -453,7 +451,9 @@ class ModelmvBayes_elastic(AbstractModel):
         #     self.trunc_error_var = np.diag(
         #         np.cov(self.mod.basisInfo.truncError.T).reshape([1, 1])
         #     ) + np.diag(np.cov(self.mod_warp.basisInfo.truncError.T).reshape([1, 1]))
-        self.trunc_error_cov = np.cov(self.mod.basisInfo.truncError.T) + np.cov(self.mod_warp.basisInfo.truncError.T)
+        self.trunc_error_cov = np.cov(self.mod.basisInfo.truncError.T) + np.cov(
+            self.mod_warp.basisInfo.truncError.T
+        )
         self.mod_s2 = np.empty([self.nmcmc, npc])
         for i in range(npc):
             self.mod_s2[:, i] = self.mod.bmList[i].samples.s2
@@ -527,7 +527,7 @@ class ModelmvBayes_elastic(AbstractModel):
                 ],
                 1,
             )
-            # this is evaluating all experiments for all thetas, 
+            # this is evaluating all experiments for all thetas,
             # which is overkill
 
     def llik(self, yobs, pred, cov):
@@ -565,7 +565,7 @@ class ModelmvBayes_elastic(AbstractModel):
     #     ldet = in_mat["ldet"] + Aldet + Cldet
     #     out = {"inv": inv, "ldet": ldet}
     #     return out
-    
+
     def lik_cov_inv(self, s2vec):
         n = len(s2vec)
         Sigma = cor2cov(
@@ -593,14 +593,14 @@ class ModelF(AbstractModel):
         self, f, input_names, exp_ind=None, s2="gibbs"
     ):  # not sure if this is vectorized
         """
-        f           : user-defined function taking single input with elements 
-                      x[0] = first element of theta, x[1] = second element of 
-                      theta, etc. Function must output predictions for all 
+        f           : user-defined function taking single input with elements
+                      x[0] = first element of theta, x[1] = second element of
+                      theta, etc. Function must output predictions for all
                       observations
         input_names : list of the names of the inputs to bmod
-        s2          : method for handling experiment-specific noise s2; 
-                      options are 'MH' (Metropolis-Hastings Sampling), 'fix' 
-                      (fixed at s2_est from addVecExperiments call), and 
+        s2          : method for handling experiment-specific noise s2;
+                      options are 'MH' (Metropolis-Hastings Sampling), 'fix'
+                      (fixed at s2_est from addVecExperiments call), and
                       'gibbs' (Gibbs sampling)
         """
         self.mod = f
@@ -641,7 +641,7 @@ class ModelF(AbstractModel):
             )
             return out_sub
 
-    def discrep_sample(self, yobs, pred, cov, itemp): 
+    def discrep_sample(self, yobs, pred, cov, itemp):
         S = np.linalg.inv(
             np.eye(self.nd) / self.discrep_tau  # defined by addVecExperiments
             + self.D.T @ (cov["inv"].flatten() * np.eye(len(yobs))) @ self.D
@@ -652,7 +652,7 @@ class ModelF(AbstractModel):
 
 
 #######
-# ModelF_bigdata: Function for Simulator Model Evaluation or Evaluation of 
+# ModelF_bigdata: Function for Simulator Model Evaluation or Evaluation of
 # Alternative Emulator Model using Bigger Data
 class ModelF_bigdata(AbstractModel):
     """Custom Simulator/Emulator Model"""
@@ -661,14 +661,14 @@ class ModelF_bigdata(AbstractModel):
         self, f, input_names, exp_ind=None, s2="gibbs"
     ):  # not sure if this is vectorized
         """
-        f           : user-defined function taking single input with elements 
-                      x[0] = first element of theta, x[1] = second element of 
-                      theta, etc. Function must output predictions for all 
+        f           : user-defined function taking single input with elements
+                      x[0] = first element of theta, x[1] = second element of
+                      theta, etc. Function must output predictions for all
                       observations
         input_names : list of the names of the inputs to bmod
-        s2          : method for handling experiment-specific noise s2; 
-                      options are 'MH' (Metropolis-Hastings Sampling), 'fix' 
-                      (fixed at s2_est from addVecExperiments call), and 
+        s2          : method for handling experiment-specific noise s2;
+                      options are 'MH' (Metropolis-Hastings Sampling), 'fix'
+                      (fixed at s2_est from addVecExperiments call), and
                       'gibbs' (Gibbs sampling)
         """
         self.mod = f
@@ -682,8 +682,8 @@ class ModelF_bigdata(AbstractModel):
         self.exp_ind = exp_ind
         self.nd = 0
         self.s2 = s2
-        self.vec = np.linspace(1, 16200, 16200)  
-        self.vec2 = np.linspace(1, 16200, 16200)  
+        self.vec = np.linspace(1, 16200, 16200)
+        self.vec2 = np.linspace(1, 16200, 16200)
         self.inv = np.linspace(
             1, 16200, 16200
         )  # define to speed up lik_cov_inv evaluation
@@ -719,7 +719,7 @@ class ModelF_bigdata(AbstractModel):
             )
             return out_sub
 
-    def discrep_sample(self, yobs, pred, cov, itemp):  
+    def discrep_sample(self, yobs, pred, cov, itemp):
         self.vec = cov["inv"].reshape(-1, 1) * (yobs - pred).reshape(-1, 1)
         self.vmat = np.repeat(cov["inv"].reshape(-1, 1), self.nd, axis=1) * self.D
         S = np.linalg.inv(
@@ -745,9 +745,11 @@ class ModelF_bigdata(AbstractModel):
         out = {"inv": self.inv, "ldet": ldet}
         return out
 
+
 #######
 # ModelE:
-# 
+#
+
 
 class ModelE(AbstractModel):
     def __init__(
@@ -757,7 +759,7 @@ class ModelE(AbstractModel):
         pool=True,
         s2="gibbs",
     ):
-        
+
         self.stochastic = False
         self.pool = pool
         self.input_names = input_names
@@ -767,24 +769,25 @@ class ModelE(AbstractModel):
         self.s2 = s2
 
         return
-    
+
     def eval(self, parmat, pool=None, nugget=False):
-        parmat_array = np.vstack(
-            [parmat[v] for v in self.input_names]
-        ).T
+        parmat_array = np.vstack([parmat[v] for v in self.input_names]).T
         a0 = parmat_array[:, 0]
         a1 = parmat_array[:, 1]
         a2 = parmat_array[:, 2]
-        b =  parmat_array[:, 3]
+        b = parmat_array[:, 3]
         t0 = parmat_array[:, 4]
         k = parmat_array[:, 5]
 
         ypred = np.zeros((parmat_array.shape[0], self.t.shape[0]))
 
         for i in range(parmat_array.shape[0]):
-            ypred[i,  :] = (a0[i] + (a1[i] + a2[i]*self.t)*self.t) / (1.0 + np.exp(b[i]*(self.t-t0[i]))) - k[i]
+            ypred[i, :] = (a0[i] + (a1[i] + a2[i] * self.t) * self.t) / (
+                1.0 + np.exp(b[i] * (self.t - t0[i]))
+            ) - k[i]
 
         return ypred
+
 
 class ModelEplus(AbstractModel):
     def __init__(
@@ -794,7 +797,7 @@ class ModelEplus(AbstractModel):
         pool=True,
         s2="gibbs",
     ):
-        
+
         self.stochastic = False
         self.pool = pool
         self.input_names = input_names
@@ -804,15 +807,13 @@ class ModelEplus(AbstractModel):
         self.s2 = s2
 
         return
-    
+
     def eval(self, parmat, pool=None, nugget=False):
-        parmat_array = np.vstack(
-            [parmat[v] for v in self.input_names]
-        ).T
+        parmat_array = np.vstack([parmat[v] for v in self.input_names]).T
         a0 = parmat_array[:, 0]
         a1 = parmat_array[:, 1]
         a2 = parmat_array[:, 2]
-        b =  parmat_array[:, 3]
+        b = parmat_array[:, 3]
         t0 = parmat_array[:, 4]
         k = parmat_array[:, 5]
         peak = parmat_array[:, 5]
@@ -822,14 +823,19 @@ class ModelEplus(AbstractModel):
         ypred = np.zeros((parmat_array.shape[0], self.t.shape[0]))
 
         for i in range(parmat_array.shape[0]):
-            ypred[i,  :] = (a0[i] + (a1[i] + a2[i]*self.t)*self.t) / (1.0 + np.exp(b[i]*(self.t-t0[i]))) - k[i] + peak[i] * np.exp(-0.5*((self.t-mu[i])/sigma[i])**2)
+            ypred[i, :] = (
+                (a0[i] + (a1[i] + a2[i] * self.t) * self.t)
+                / (1.0 + np.exp(b[i] * (self.t - t0[i])))
+                - k[i]
+                + peak[i] * np.exp(-0.5 * ((self.t - mu[i]) / sigma[i]) ** 2)
+            )
 
         return ypred
 
 
 #######
 # ModelMaterialStrength: PTW Model for Hopi-Bar / Quasistatic Experiments
-epsilon = 1e-5  # used in ModelMaterialStrength to pad set of strains 
+epsilon = 1e-5  # used in ModelMaterialStrength to pad set of strains
 
 
 class ModelMaterialStrength(AbstractModel):
@@ -854,14 +860,14 @@ class ModelMaterialStrength(AbstractModel):
         s2="gibbs",
     ):
         """
-        temps               : list of temperatures indexed by experiment 
+        temps               : list of temperatures indexed by experiment
                               (units = Kelvin)
-        edots               : edots: list of strain rates indexed by 
+        edots               : edots: list of strain rates indexed by
                               experiment (units = NEED TO ADD)
-        consts              : dictionary of constants for PTW model. Use 
-                              showdef_ModelMaterialStrength(str_func_name) 
+        consts              : dictionary of constants for PTW model. Use
+                              showdef_ModelMaterialStrength(str_func_name)
                               to figure out the needed constants
-        strain_histories    : List of strain histories for HB/Quasistatic 
+        strain_histories    : List of strain histories for HB/Quasistatic
                               Experiments
         flow_stress_model   : options provided by getoptions_ModelMaterialStrength()['flow_stress_model']
         melt_model          : options provided by getoptions_ModelMaterialStrength()['melt_model']
@@ -917,8 +923,8 @@ class ModelMaterialStrength(AbstractModel):
             )  # number of temper temps
             parmat_big = parmat
 
-        edots = np.kron(np.ones(nrep), self.edots)  
-        temps = np.kron(np.ones(nrep), self.temps)  
+        edots = np.kron(np.ones(nrep), self.edots)
+        temps = np.kron(np.ones(nrep), self.temps)
         strain_maxs = np.kron(
             np.ones(nrep), self.meas_strain_max
         )  # 1d vector, nexp * temper_temps
@@ -943,12 +949,11 @@ class ModelMaterialStrength(AbstractModel):
         )
         # Expand/flatten simulated stress to single vector
         flattened_sim_stress = np.hstack(sim_stresses)
-        # Expand/flatten measured strain to single vector, for each parameter.  
+        # Expand/flatten measured strain to single vector, for each parameter.
         # Use same Computed strain ends to ensure no overlap
         flattened_strain = (
             np.hstack(  # cycle will repeat through measured strain histories
-                [x + y for x, y in zip(cycle(self.meas_strain_histories), 
-                                       strain_ends)]
+                [x + y for x, y in zip(cycle(self.meas_strain_histories), strain_ends)]
             )
         )
         ifunc = interp1d(  # Generate the interpolation function.
@@ -957,7 +962,7 @@ class ModelMaterialStrength(AbstractModel):
             kind="linear",
             assume_sorted=True,
         )
-        ypred = ifunc(flattened_strain).reshape(nrep, -1) 
+        ypred = ifunc(flattened_strain).reshape(nrep, -1)
         return ypred
 
 
@@ -968,7 +973,7 @@ def interpolate_experiment(args):
 
 
 #######
-# getoptions_ModelMaterialStrength: 
+# getoptions_ModelMaterialStrength:
 # Provides current options for ModelMaterialStrength physical models
 def getoptions_ModelMaterialStrength():
     import impala
@@ -996,12 +1001,12 @@ def getoptions_ModelMaterialStrength():
 
 
 #######
-# showdef_ModelMaterialStrength: Shows the definition for a given 
+# showdef_ModelMaterialStrength: Shows the definition for a given
 # ModelMaterialStrength function listed in getoptions_ModelMaterialStrength()
 def showdef_ModelMaterialStrength(func_name):
     """
-    func_name: string listing a function listed in 
-               get_ModelMaterialStrength_options(), e.g., 
+    func_name: string listing a function listed in
+               get_ModelMaterialStrength_options(), e.g.,
                showdef_ModelMaterialStrength('Linear_Specific_Heat')
     """
     import impala
