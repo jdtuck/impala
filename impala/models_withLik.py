@@ -745,6 +745,77 @@ class ModelF_bigdata(AbstractModel):
         out = {"inv": self.inv, "ldet": ldet}
         return out
 
+#######
+# ModelE:
+# 
+
+class ModelE(AbstractModel):
+    def __init__(
+        self,
+        t,
+        pool=True,
+        s2="gibbs",
+    ):
+        
+        self.stochastic = False
+        self.pool = pool
+        self.yobs = None
+        self.nd = 0
+        self.t = t
+        self.s2 = s2
+
+        return
+    
+    def eval(self, parmat, pool=None, nugget=False):
+        a0 = parmat[:, 0]
+        a1 = parmat[:, 1]
+        a2 = parmat[:, 2]
+        b =  parmat[:, 3]
+        t0 = parmat[:, 4]
+        k = parmat[:, 5]
+
+        ypred = np.zeros((parmat.shape[0], self.t.shape[0]))
+
+        for i in range(parmat.shape[0]):
+            ypred[i,  :] = (a0[i] + (a1[i] + a2[i]*self.t)*self.t) / (1.0 + np.exp(b[i]*(self.t-t0[i]))) - k[i]
+
+        return ypred
+
+class ModelEplus(AbstractModel):
+    def __init__(
+        self,
+        t,
+        pool=True,
+        s2="gibbs",
+    ):
+        
+        self.stochastic = False
+        self.pool = pool
+        self.yobs = None
+        self.nd = 0
+        self.t = t
+        self.s2 = s2
+
+        return
+    
+    def eval(self, parmat, pool=None, nugget=False):
+        a0 = parmat[:, 0]
+        a1 = parmat[:, 1]
+        a2 = parmat[:, 2]
+        b =  parmat[:, 3]
+        t0 = parmat[:, 4]
+        k = parmat[:, 5]
+        peak = parmat[:, 5]
+        mu = parmat[:, 5]
+        sigma = parmat[:, 5]
+
+        ypred = np.zeros((parmat.shape[0], self.t.shape[0]))
+
+        for i in range(parmat.shape[0]):
+            ypred[i,  :] = (a0[i] + (a1[i] + a2[i]*self.t)*self.t) / (1.0 + np.exp(b[i]*(self.t-t0[i]))) - k[i] + peak[i] * np.exp(-0.5*((self.t-mu[i])/sigma[i])**2)
+
+        return ypred
+
 
 #######
 # ModelMaterialStrength: PTW Model for Hopi-Bar / Quasistatic Experiments
