@@ -789,6 +789,48 @@ class ModelE(AbstractModel):
         return ypred
 
 
+class ModelE2(AbstractModel):
+    def __init__(
+        self,   
+        t,
+        input_names,
+        pool=True,
+        s2="gibbs",
+    ):
+
+        self.stochastic = False
+        self.pool = pool
+        self.input_names = input_names
+        self.yobs = None
+        self.nd = 0
+        self.t = t
+        self.s2 = s2
+
+        return
+
+    def eval(self, parmat, pool=None, nugget=False):
+        parmat_array = np.vstack([parmat[v] for v in self.input_names]).T
+        a0 = parmat_array[:, 0]
+        a1 = parmat_array[:, 1]
+        a2 = parmat_array[:, 2]
+        b = parmat_array[:, 3]
+        t0 = parmat_array[:, 4]
+        c0 = parmat_array[:, 5]
+        c1 = parmat_array[:, 6]
+        c2 = parmat_array[:, 7]
+        c3 = parmat_array[:, 8]
+        k = parmat_array[:, 9]
+
+        ypred = np.zeros((parmat_array.shape[0], self.t.shape[0]))
+
+        for i in range(parmat_array.shape[0]):
+            ypred[i, :] = (np.exp(c0[i]+c1[i]*self.t+c2[i]*self.t+c3[i]*self.t**3) + a0[i] + (a1[i] + a2[i] * self.t) * self.t) / (
+                1.0 + np.exp(b[i] * (self.t - t0[i]))
+            ) - k[i]
+
+        return ypred
+
+
 class ModelEplus(AbstractModel):
     def __init__(
         self,
@@ -816,9 +858,9 @@ class ModelEplus(AbstractModel):
         b = parmat_array[:, 3]
         t0 = parmat_array[:, 4]
         k = parmat_array[:, 5]
-        peak = parmat_array[:, 5]
-        mu = parmat_array[:, 5]
-        sigma = parmat_array[:, 5]
+        peak = parmat_array[:, 6]
+        mu = parmat_array[:, 7]
+        sigma = parmat_array[:, 8]
 
         ypred = np.zeros((parmat_array.shape[0], self.t.shape[0]))
 
@@ -829,6 +871,51 @@ class ModelEplus(AbstractModel):
                 - k[i]
                 + peak[i] * np.exp(-0.5 * ((self.t - mu[i]) / sigma[i]) ** 2)
             )
+
+        return ypred
+
+
+class ModelE2plus(AbstractModel):
+    def __init__(
+        self,   
+        t,
+        input_names,
+        pool=True,
+        s2="gibbs",
+    ):
+
+        self.stochastic = False
+        self.pool = pool
+        self.input_names = input_names
+        self.yobs = None
+        self.nd = 0
+        self.t = t
+        self.s2 = s2
+
+        return
+
+    def eval(self, parmat, pool=None, nugget=False):
+        parmat_array = np.vstack([parmat[v] for v in self.input_names]).T
+        a0 = parmat_array[:, 0]
+        a1 = parmat_array[:, 1]
+        a2 = parmat_array[:, 2]
+        b = parmat_array[:, 3]
+        t0 = parmat_array[:, 4]
+        c0 = parmat_array[:, 5]
+        c1 = parmat_array[:, 6]
+        c2 = parmat_array[:, 7]
+        c3 = parmat_array[:, 8]
+        k = parmat_array[:, 9]
+        peak = parmat_array[:, 10]
+        mu = parmat_array[:, 11]
+        sigma = parmat_array[:, 12]
+
+        ypred = np.zeros((parmat_array.shape[0], self.t.shape[0]))
+
+        for i in range(parmat_array.shape[0]):
+            ypred[i, :] = (np.exp(c0[i]+c1[i]*self.t+c2[i]*self.t+c3[i]*self.t**3) + a0[i] + (a1[i] + a2[i] * self.t) * self.t) / (
+                1.0 + np.exp(b[i] * (self.t - t0[i]))
+            ) - k[i] + peak[i] * np.exp(-0.5 * ((self.t - mu[i]) / sigma[i]) ** 2)
 
         return ypred
 
