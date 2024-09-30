@@ -824,7 +824,7 @@ class ModelE2(AbstractModel):
         ypred = np.zeros((parmat_array.shape[0], self.t.shape[0]))
 
         for i in range(parmat_array.shape[0]):
-            ypred[i, :] = (np.exp(c0[i]+c1[i]*self.t+c2[i]*self.t+c3[i]*self.t**3) + a0[i] + (a1[i] + a2[i] * self.t) * self.t) / (
+            ypred[i, :] = (np.exp(c0[i]+c1[i]*self.t+c2[i]*self.t**2+c3[i]*self.t**3) + a0[i] + (a1[i] + a2[i] * self.t) * self.t) / (
                 1.0 + np.exp(b[i] * (self.t - t0[i]))
             ) - k[i]
 
@@ -913,7 +913,7 @@ class ModelE2plus(AbstractModel):
         ypred = np.zeros((parmat_array.shape[0], self.t.shape[0]))
 
         for i in range(parmat_array.shape[0]):
-            ypred[i, :] = (np.exp(c0[i]+c1[i]*self.t+c2[i]*self.t+c3[i]*self.t**3) + a0[i] + (a1[i] + a2[i] * self.t) * self.t) / (
+            ypred[i, :] = (np.exp(c0[i]+c1[i]*self.t+c2[i]*self.t**2+c3[i]*self.t**3) + a0[i] + (a1[i] + a2[i] * self.t) * self.t) / (
                 1.0 + np.exp(b[i] * (self.t - t0[i]))
             ) - k[i] + peak[i] * np.exp(-0.5 * ((self.t - mu[i]) / sigma[i]) ** 2)
 
