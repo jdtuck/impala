@@ -39,6 +39,7 @@ def chol_sample(mean, cov):
 ### Model Classes ### #should have eval method and stochastic attribute
 #####################
 
+
 #######
 ### AbstractModel: Internal class, not called by users
 class AbstractModel:
@@ -106,7 +107,7 @@ class ModelmvBayes(AbstractModel):
         self.trunc_error_cov = np.cov(self.mod.basisInfo.truncError.T)
         self.mod_s2 = np.empty([self.nmcmc, npc])
         for i in range(npc):
-            self.mod_s2[:, i] = self.mod.bmList[i].samples.residSD**2
+            self.mod_s2[:, i] = self.mod.bmList[i].samples.residSD ** 2
         self.emu_vars = self.mod_s2[self.ii]
         self.yobs = None
         self.marg_lik_cov = None
@@ -122,7 +123,7 @@ class ModelmvBayes(AbstractModel):
         self.s2 = s2
         self.constants = None
         if s2 == "gibbs":
-             raise ValueError("Cannot use Gibbs s2 for emulator models.")
+            raise ValueError("Cannot use Gibbs s2 for emulator models.")
 
     def step(self):
         self.ii = np.random.choice(range(self.nmcmc), 1).item()
@@ -140,10 +141,12 @@ class ModelmvBayes(AbstractModel):
         """
         parmat : ~
         """
-        parmat_array = np.vstack(
-            [parmat[v] for v in self.input_names]
-        ).T  # get correct subset/ordering of inputs
-        pred = self.mod.predict(parmat_array, idxSamples=np.array([self.ii]))[0, :, :]
+        parmat_array = np.vstack([
+            parmat[v] for v in self.input_names
+        ]).T  # get correct subset/ordering of inputs
+        pred = self.mod.predict(parmat_array, idxSamples=np.array([self.ii]))[
+            0, :, :
+        ]
 
         if pool is True:
             return pred
@@ -186,7 +189,7 @@ class ModelmvBayes(AbstractModel):
         inv = np.linalg.inv(mat)
         out = {"inv": inv, "ldet": ldet}
         return out
-        
+
 
 #######
 ### ModelBassPca_mult: Model with BASS Emulator from pyBASS with Multivariate Output
