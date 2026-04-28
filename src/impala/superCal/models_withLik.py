@@ -39,7 +39,6 @@ def chol_sample(mean, cov):
 ### Model Classes ### #should have eval method and stochastic attribute
 #####################
 
-
 #######
 ### AbstractModel: Internal class, not called by users
 class AbstractModel:
