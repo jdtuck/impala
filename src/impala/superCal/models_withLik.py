@@ -123,13 +123,11 @@ class ModelmvBayes(AbstractModel):
         self.s2 = s2
         self.constants = None
         if s2 == "gibbs":
-            raise "Cannot use Gibbs s2 for emulator models."
-        return
+             raise ValueError("Cannot use Gibbs s2 for emulator models.")
 
     def step(self):
         self.ii = np.random.choice(range(self.nmcmc), 1).item()
         self.emu_vars = self.mod_s2[self.ii]
-        return
 
     def discrep_sample(self, yobs, pred, cov, itemp):
         S = np.linalg.inv(
@@ -151,7 +149,7 @@ class ModelmvBayes(AbstractModel):
         if pool is True:
             return pred
         else:
-            nrep = list(parmat.values())[0].shape[0] // self.nexp
+            nrep = next(iter(parmat.values())).shape[0] // self.nexp
             return np.concatenate(
                 [
                     pred[
