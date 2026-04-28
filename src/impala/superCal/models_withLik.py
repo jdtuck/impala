@@ -121,6 +121,7 @@ class ModelmvBayes(AbstractModel):
         self.nexp = exp_ind.max() + 1
         self.exp_ind = exp_ind
         self.s2 = s2
+        self.constants = None
         if s2 == "gibbs":
             raise "Cannot use Gibbs s2 for emulator models."
         return
