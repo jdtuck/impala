@@ -846,14 +846,14 @@ def hide_current_axis(*args, **kwds):
     plt.gca().set_visible(False)
 
 
-def pairs(setup, mat_st, col=None, s=None):
+def pairs(setup, mat_st, col=None, s=None, path=None):
     dat = pd.DataFrame(
         sc.tran_unif(mat_st, setup.bounds_mat, setup.bounds.keys())
     )
     if col is None:
         col = ["blue"] * mat_st.shape[0]
     if s is None:
-        s = [3] * mat_st.shape[0]
+        s = 3
     dat["col"] = col
     # g = sns.pairplot(dat, plot_kws={"s": s}, corner=True, diag_kind='hist', hue='col')
     g = sns.pairplot(dat, plot_kws={"s": s}, diag_kind="hist", hue="col")
@@ -864,6 +864,8 @@ def pairs(setup, mat_st, col=None, s=None):
         g.axes[i, i].set_xlim(setup.bounds[dat.keys()[i]])
         g.axes[i, i].set_ylim(setup.bounds[dat.keys()[i]])
     g.fig.set_size_inches(10, 10)
+    if path:
+        g.savefig(path, bbox_inches="tight")
     #    plt.show()
 
 

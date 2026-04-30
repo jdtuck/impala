@@ -1,8 +1,11 @@
+import pathlib
+
 import fdasrsf as fs
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pyBASS as pb
+import seaborn as sns
 
 from impala import superCal as sc
 
@@ -14,46 +17,39 @@ np.seterr(under="ignore")
 
 #############################################################################
 ## get data
+datafolder = pathlib.Path(__file__).resolve().parents[1] / "data" / "Al-5083"
+plotfolder = datafolder / "plots"
+plotfolder.mkdir(exist_ok=True)
+print(f"{datafolder=}")
+print(f"{plotfolder=}")
 
 sim_inputs = np.genfromtxt(
-    "./../impala/data/Al-5083/flyer_data/sim_input.csv",
+    datafolder / "flyer_data" / "sim_input.csv",
     delimiter=",",
     skip_header=1,
 )
 input_names = ["A", "B", "C", "n", "m", "v1", "v2", "v3", "G1", "del2", "del3"]
 
-xx104 = np.genfromtxt(
-    "./../impala/data/Al-5083/flyer_data/xsims104.csv", delimiter=","
-)
-xx105 = np.genfromtxt(
-    "./../impala/data/Al-5083/flyer_data/xsims105.csv", delimiter=","
-)
-xx106 = np.genfromtxt(
-    "./../impala/data/Al-5083/flyer_data/xsims106.csv", delimiter=","
-)
+xx104 = np.genfromtxt(datafolder / "flyer_data" / "xsims104.csv", delimiter=",")
+xx105 = np.genfromtxt(datafolder / "flyer_data" / "xsims105.csv", delimiter=",")
+xx106 = np.genfromtxt(datafolder / "flyer_data" / "xsims106.csv", delimiter=",")
 xx_all_list = [xx104, xx105, xx106]
 
 sims104 = np.genfromtxt(
-    "./../impala/data/Al-5083/flyer_data/sims104.csv", delimiter=","
+    datafolder / "flyer_data" / "sims104.csv", delimiter=","
 )
 sims105 = np.genfromtxt(
-    "./../impala/data/Al-5083/flyer_data/sims105.csv", delimiter=","
+    datafolder / "flyer_data" / "sims105.csv", delimiter=","
 )
 sims106 = np.genfromtxt(
-    "./../impala/data/Al-5083/flyer_data/sims106.csv", delimiter=","
+    datafolder / "flyer_data" / "sims106.csv", delimiter=","
 )
 sims_all_list = [sims104, sims105, sims106]
 # sims_all = np.hstack(sims_all_list)
 
-obs104 = np.genfromtxt(
-    "./../impala/data/Al-5083/flyer_data/obs104.csv", delimiter=","
-)
-obs105 = np.genfromtxt(
-    "./../impala/data/Al-5083/flyer_data/obs105.csv", delimiter=","
-)
-obs106 = np.genfromtxt(
-    "./../impala/data/Al-5083/flyer_data/obs106.csv", delimiter=","
-)
+obs104 = np.genfromtxt(datafolder / "flyer_data" / "obs104.csv", delimiter=",")
+obs105 = np.genfromtxt(datafolder / "flyer_data" / "obs105.csv", delimiter=",")
+obs106 = np.genfromtxt(datafolder / "flyer_data" / "obs106.csv", delimiter=",")
 obs_all_list = [obs104, obs105, obs106]
 # obs_all = np.hstack(obs_all_list)
 
@@ -152,7 +148,7 @@ axis[2, 2].set_xlabel("warped time")
 
 plt.tight_layout()
 
-plt.savefig("./../../Desktop/foo.png", dpi=300)
+plt.savefig(plotfolder / "foo.png", dpi=300)
 # plt.savefig('foo.pdf')
 
 plt.show()
@@ -253,12 +249,9 @@ bounds_mat = np.array([
 bounds = dict(zip(input_names, bounds_mat))
 
 
-def constraint_funcion(x, bounds):
-    k = next(iter(bounds.keys()))
-    good = x[k] < bounds[k][1]
-    for k in list(bounds.keys()):
-        good = good * (x[k] < bounds[k][1]) * (x[k] > bounds[k][0])
-    return good
+constraint_funcion = (
+    sc.cf_bounds
+)  # included in superCal, no need to hard code here
 
 
 ends = M - 125
@@ -378,7 +371,7 @@ leg.legendHandles[1].set_color("lightblue")
 leg.legendHandles[2].set_color("black")
 figure.set_size_inches(10, 5)
 plt.tight_layout()
-plt.savefig("./../../Desktop/pred_aligned.png", dpi=300)
+plt.savefig(plotfolder / "pred_aligned.png", dpi=300)
 plt.show()
 
 figure, axis = plt.subplots(1, nexp)
@@ -406,7 +399,7 @@ leg.legendHandles[1].set_color("lightblue")
 leg.legendHandles[2].set_color("black")
 figure.set_size_inches(10, 5)
 plt.tight_layout()
-plt.savefig("./../../Desktop/pred_vv.png", dpi=300)
+plt.savefig(plotfolder / "pred_vv.png", dpi=300)
 plt.show()
 
 figure, axis = plt.subplots(1, nexp)
@@ -445,7 +438,7 @@ leg.legendHandles[1].set_color("lightblue")
 leg.legendHandles[2].set_color("black")
 figure.set_size_inches(10, 5)
 plt.tight_layout()
-plt.savefig("./../../Desktop/pred_warping.png", dpi=300)
+plt.savefig(plotfolder / "pred_warping.png", dpi=300)
 plt.show()
 
 
@@ -473,14 +466,11 @@ dat = pd.DataFrame(out.discrep_vars[1][uu, 0, :])
 g = sns.pairplot(
     dat, plot_kws={"s": [3] * len(uu)}, corner=True, diag_kind="hist"
 )
-g
 plt.show()
 
 figure = plt.figure()
 # xx_true = Xtrain[ind_true][None, :]
 # pairs plot of parameters
-import pandas as pd
-import seaborn as sns
 
 dat = pd.DataFrame(out.theta[uu, 0, :])
 # dat = dat.append(pd.DataFrame(xx_true))
@@ -491,9 +481,8 @@ g = sns.pairplot(
 )
 g.set(xlim=(0, 1), ylim=(0, 1))
 g.fig.set_size_inches(10, 10)
-g
 plt.tight_layout()
-plt.savefig("./../../Desktop/params.png", dpi=300)
+plt.savefig(plotfolder / "params.png", dpi=300)
 plt.show()
 plt.show()
 
@@ -528,7 +517,7 @@ leg.legendHandles[1].set_color("lightblue")
 leg.legendHandles[2].set_color("black")
 figure.set_size_inches(10, 5)
 plt.tight_layout()
-plt.savefig("./../../Desktop/pred_misaligned.png", dpi=300)
+plt.savefig(plotfolder / "pred_misaligned.png", dpi=300)
 plt.show()
 
 axis[0, 0].title.set_text("Misaligned")
@@ -550,4 +539,4 @@ axis[2, 2].set_xlabel("warped time")
 
 plt.tight_layout()
 
-plt.savefig("./../../Desktop/pred_misaligned.png", dpi=300)
+plt.savefig(plotfolder / "pred_misaligned.png", dpi=300)
