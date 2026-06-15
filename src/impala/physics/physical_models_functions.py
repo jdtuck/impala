@@ -52,27 +52,6 @@ cbrtAvogadro = pow(Avogadro, 1.0 / 3.0)
 ########################
 
 
-def Linear_Specific_Heat(c0: float, c1: float, T: float) -> float:
-    """
-    Linear Specific Heat Model
-
-    T: temperature
-    c0, c1: model parameters
-    """
-    return c0 + c1 * T
-
-
-@jit(nopython=True)
-def Quadratic_Specific_Heat(c0: float, c1: float, c2: float, T: float) -> float:
-    """
-    Quadratic Specific Heat Model
-
-    T: temperature
-    c0, c1, c2: model parameters
-    """
-    return c0 + c1 * T + c2 * T**2
-
-
 @jit(nopython=True)
 def Cubic_Specific_Heat(
     c0: float, c1: float, c2: float, c3: float, T: float
@@ -84,61 +63,6 @@ def Cubic_Specific_Heat(
     c0, c1, c2, c3: model parameters
     """
     return c0 + c1 * T + c2 * T**2 + c3 * T**3
-
-
-@jit(nopython=True)
-def Piecewise_Linear_Specific_Heat(
-    Tt: float, c00: float, c01: float, c10: float, c11: float, T: float
-) -> float:
-    """
-    Piecewise Linear Specific Heat Model
-
-    T: current temperature
-    Tt: temperature separating the two linear models
-    c00, c10: model parameters used up to temperature Tt
-    c01, c11: model parameters used above Tt
-
-    Cv (T) = c00 + c10 * T for T<=Tt
-    Cv (T) = c01 + c11 * T for T>Tt
-    """
-    intercept = np.repeat(c00, len(T))
-    slope = np.repeat(c10, len(T))
-    intercept[np.where(T > Tt)] = c01
-    slope[np.where(T > Tt)] = c11
-    return intercept + slope * T
-
-
-@jit(nopython=True)
-def Piecewise_Quadratic_Specific_Heat(
-    Tt: float,
-    c00: float,
-    c01: float,
-    c10: float,
-    c11: float,
-    c20: float,
-    c21: float,
-    T: float,
-) -> float:
-    """
-    Piecewise Quadratic Specific Heat Model
-
-    T: current temperature
-    Tt: temperature separating the two quadratic models
-    c00, c10, c20: model parameters used up to temperature Tt
-    c01, c11, c21: model parameters used above Tt
-
-    Cv (T) = c00 + c10 * T + c20 * T**2 for T<=Tt
-    Cv (T) = c01 + c11 * T + c21 * T**2 for T>Tt
-    """
-    pow_0_coeff = np.repeat(c00, len(T))
-    pow_1_coeff = np.repeat(c10, len(T))
-    pow_2_coeff = np.repeat(c20, len(T))
-
-    pow_0_coeff[np.where(T > Tt)] = c01
-    pow_1_coeff[np.where(T > Tt)] = c11
-    pow_2_coeff[np.where(T > Tt)] = c21
-
-    return pow_0_coeff + pow_1_coeff * T + pow_2_coeff * T * T
 
 
 @jit(nopython=True)
@@ -184,27 +108,6 @@ def Piecewise_Cubic_Specific_Heat(
 ########################
 
 
-def Linear_Density(r0: float, r1: float, T: float) -> float:
-    """
-    Linear Density Model
-
-    T: temperature
-    r0, r1: model parameters
-    """
-    return r0 + r1 * T
-
-
-@jit(nopython=True)
-def Quadratic_Density(r0: float, r1: float, r2: float, T: float) -> float:
-    """
-    Quadratic Density Model
-
-    T: temperature
-    r0, r1, r2: model parameters
-    """
-    return r0 + r1 * T + r2 * T**2
-
-
 @jit(nopython=True)
 def Cubic_Density(
     r0: float, r1: float, r2: float, r3: float, T: float
@@ -221,29 +124,6 @@ def Cubic_Density(
 ########################
 # Melt Temperature Models
 ########################
-
-
-def Linear_Melt_Temperature(tm0: float, tm1: float, rho: float) -> float:
-    """
-    Linear Melt Temperature Model
-
-    rho: material density
-    tm0, tm1: model parameters
-    """
-    return tm0 + tm1 * rho
-
-
-@jit(nopython=True)
-def Quadratic_Melt_Temperature(
-    tm0: float, tm1: float, tm2: float, rho: float
-) -> float:
-    """
-    Quadratic Melt Temperature Model
-
-    rho: material density
-    tm0, tm1, tm2: model parameters
-    """
-    return tm0 + tm1 * rho + tm2 * rho**2
 
 
 @jit(nopython=True)
@@ -286,27 +166,6 @@ def BGP_Melt_Temperature(
 ########################
 # Shear Modulus Models
 ########################
-
-
-@jit(nopython=True)
-def Linear_Cold_PW_Shear_Modulus(
-    g0: float, g1: float, alpha: float, rho: float, T: float, Tmelt: float
-) -> float:
-    """
-    Linear Cold PW Shear Modulus
-
-    rho: current material density
-    T: temperature
-    Tmelt: melting temperature
-    g0, g1, alpha: model parameters
-    """
-    cold_shear = g0 + g1 * rho
-    gnow = cold_shear * (1.0 - alpha * (T / Tmelt))
-
-    gnow[np.where(T >= Tmelt)] = 0.0
-    gnow[np.where(gnow < 0)] = 0.0
-
-    return gnow
 
 
 @jit(nopython=True)
@@ -394,10 +253,16 @@ def BGP_PW_Shear_Modulus(
 @jit(nopython=True)
 def Stein_Shear_Modulus(G0: float, sgB: float, T: float, Tmelt: float) -> float:
     """
-    Stein Shear Modulus assuming constant density and pressure,
+    Steinberg-Guinan Shear Modulus assuming constant density and pressure,
     so we only include the temperature dependence;
     including aterm = a/eta**(1.0/3.0)*pressure here just for completeness
-    and setting aterm = 0
+    and setting aterm = 0;
+    see Steinberg, Cochran, and Guinan, J. Appl. Phys. 51 (1980) 1498
+    https://doi.org/10.1063/1.327799
+    and Steinberg, Int. J. Impact Eng. 5 (1987) 603
+    https://doi.org/10.1016/0734-743X(87)90075-3
+    and Steinberg, J. Appl. Phys. 74 (1993) 3827
+    https://doi.org/10.1063/1.355316
 
     T: temperature
     Tmelt: melting temperature
@@ -417,12 +282,6 @@ def Stein_Shear_Modulus(G0: float, sgB: float, T: float, Tmelt: float) -> float:
 
 
 @jit(nopython=True)
-def pos(a):
-    """returns array a with all negative values set to 0"""
-    return np.maximum(0, a)
-
-
-@jit(nopython=True)
 def JC_Yield_Stress(
     edot: float,
     A: float,
@@ -437,7 +296,9 @@ def JC_Yield_Stress(
     Tmelt: float,
 ) -> float:
     """
-    JC Yield Stress
+    Johnson-Cook Yield Stress Model;
+    see Johnson, Cook, Engineering Fracture Mechanics, 21(1):31–48, 1985
+    https://doi.org/10.1016/0013-7944(85)90052-9
 
     eps: current strain
     T: temperature
@@ -445,7 +306,7 @@ def JC_Yield_Stress(
     edot0, Tref: reference strain rate and temperature
     A, B, C, n, m: model parameters
     """
-    th = pos((T - Tref) / (Tmelt - Tref))
+    th = np.maximum(0, (T - Tref) / (Tmelt - Tref))
 
     Y = (
         (A + B * np.power(eps, n))
@@ -585,7 +446,26 @@ def Stein_Flow_Stress(
     T: float,
     Tmelt: float,
 ) -> float:
-    """this function implements the Stein flow tress model"""
+    """
+    This function implements the Steinberg-Guinan flow stress model
+    (without the thermally activated part of the yield strength).
+    see Steinberg, Cochran, and Guinan, J. Appl. Phys. 51 (1980) 1498
+    https://doi.org/10.1063/1.327799
+    and Steinberg, Int. J. Impact Eng. 5 (1987) 603
+    https://doi.org/10.1016/0734-743X(87)90075-3
+    and Steinberg, Lund, J. Appl. Phys. 65 (1989) 1528
+    https://doi.org/10.1063/1.342968
+
+    eps: current strain
+    T: temperature
+    Tmelt: melting temperature
+    shear: current shear modulus
+    beta, n: empirical work hardenning model parameters
+    epsi: initial equivalent plastic strain (model parameter)
+    y0: initial flow stress (model parameter)
+    ymax: upper limit of the hardening term (model parameter)
+    G0: reference shear nmodulus at ambient conditions (model parameter)
+    """
     fnow = np.power((1.0 + beta * (epsi + eps)), n)
 
     cond1 = fnow * y0 > ymax

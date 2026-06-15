@@ -72,24 +72,10 @@ class Constant_Specific_Heat(BaseModel):
         return self.parent.parameters.Cv0 * np.ones(len(self.parent.state.T))
 
 
-# class Linear_Specific_Heat(BaseModel):
-#    """
-#    Linear Specific Heat Model
-#    """
-#    consts = ['Cv0', 'T0', 'dCdT']
-
-#    def value(self, *args):
-#        c0=self.parent.parameters.Cv0
-#        t0=self.parent.parameters.T0
-#        dcdt=self.parent.parameters.dCdT
-#        tnow=self.parent.state.T
-#        cnow=c0+(tnow-t0)*dcdt
-#        return cnow
-
-
 class Linear_Specific_Heat(BaseModel):
     """
     Linear Specific Heat Model
+    calls Cubic Specific Heat Model with c2=0=c3 under the hood
     """
 
     def __init__(self, parent):
@@ -97,9 +83,11 @@ class Linear_Specific_Heat(BaseModel):
         self.consts = ["c0", "c1"]
 
     def value(self, *args):
-        return functions.Linear_Specific_Heat(
+        return functions.Cubic_Specific_Heat(
             c0=self.parent.parameters.c0,
             c1=self.parent.parameters.c1,
+            c2=0,
+            c3=0,
             T=self.parent.state.T,
         )
 
@@ -107,6 +95,7 @@ class Linear_Specific_Heat(BaseModel):
 class Quadratic_Specific_Heat(BaseModel):
     """
     Quadratic Specific Heat Model
+    calls Cubic Specific Heat Model with c3=0 under the hood
     """
 
     def __init__(self, parent):
@@ -114,10 +103,11 @@ class Quadratic_Specific_Heat(BaseModel):
         self.consts = ["c0", "c1", "c2"]
 
     def value(self, *args):
-        return functions.Quadratic_Specific_Heat(
+        return functions.Cubic_Specific_Heat(
             c0=self.parent.parameters.c0,
             c1=self.parent.parameters.c1,
             c2=self.parent.parameters.c2,
+            c3=0,
             T=self.parent.state.T,
         )
 
@@ -144,8 +134,7 @@ class Cubic_Specific_Heat(BaseModel):
 class Piecewise_Linear_Specific_Heat(BaseModel):
     """
     Piecewise Linear Specific Heat Model
-    Cv (T) = c0_0 + c1_0 * T for T<=T_t
-    Cv (T) = c0_1 + c1_1 * T for T>T_t
+    calls Piecewise_Cubic_Specific_Heat Model with c20=0=c21 and c30=0=c31 under the hood
     """
 
     def __init__(self, parent):
@@ -153,12 +142,16 @@ class Piecewise_Linear_Specific_Heat(BaseModel):
         self.consts = ["T_t", "c0_0", "c1_0", "c0_1", "c1_1"]
 
     def value(self, *args):
-        return functions.Piecewise_Linear_Specific_Heat(
+        return functions.Piecewise_Cubic_Specific_Heat(
             Tt=self.parent.parameters.T_t,
             c00=self.parent.parameters.c0_0,
             c01=self.parent.parameters.c0_1,
             c10=self.parent.parameters.c1_0,
             c11=self.parent.parameters.c1_1,
+            c20=0,
+            c21=0,
+            c30=0,
+            c31=0,
             T=self.parent.state.T,
         )
 
@@ -166,8 +159,7 @@ class Piecewise_Linear_Specific_Heat(BaseModel):
 class Piecewise_Quadratic_Specific_Heat(BaseModel):
     """
     Piecewise Quadratic Specific Heat Model
-    Cv (T) = c0_0 + c1_0 * T + c2_0 * T**2 for T<=T_t
-    Cv (T) = c0_1 + c1_1 * T + c2_1 * T**2 for T>T_t
+    calls Piecewise_Cubic_Specific_Heat Model with c30=0=c31 under the hood
     """
 
     def __init__(self, parent):
@@ -175,7 +167,7 @@ class Piecewise_Quadratic_Specific_Heat(BaseModel):
         self.consts = ["T_t", "c0_0", "c1_0", "c2_0", "c0_1", "c1_1", "c2_1"]
 
     def value(self, *args):
-        return functions.Piecewise_Quadratic_Specific_Heat(
+        return functions.Piecewise_Cubic_Specific_Heat(
             Tt=self.parent.parameters.T_t,
             c00=self.parent.parameters.c0_0,
             c01=self.parent.parameters.c0_1,
@@ -183,6 +175,8 @@ class Piecewise_Quadratic_Specific_Heat(BaseModel):
             c11=self.parent.parameters.c1_1,
             c20=self.parent.parameters.c2_0,
             c21=self.parent.parameters.c2_1,
+            c30=0,
+            c31=0,
             T=self.parent.state.T,
         )
 
@@ -241,24 +235,10 @@ class Constant_Density(BaseModel):
         return self.parent.parameters.rho0 * np.ones(len(self.parent.state.T))
 
 
-# class Linear_Density(BaseModel):
-#    """
-#    Linear Density Model
-#    """
-#    consts = ['rho0', 'T0', 'dRhodT']
-
-#    def value(self, *args):
-#        r0=self.parent.parameters.rho0
-#        t0=self.parent.parameters.T0
-#        drdt=self.parent.parameters.dRhodT
-#        tnow=self.parent.state.T
-#        rnow=r0+drdt*(tnow-t0)
-#        return rnow
-
-
 class Linear_Density(BaseModel):
     """
     Linear Density Model
+    calls Cubic_Density Model with r2=0=r3 under the hood
     """
 
     def __init__(self, parent):
@@ -266,9 +246,11 @@ class Linear_Density(BaseModel):
         self.consts = ["r0", "r1"]
 
     def value(self, *args):
-        return functions.Linear_Density(
+        return functions.Cubic_Density(
             r0=self.parent.parameters.r0,
             r1=self.parent.parameters.r1,
+            r2=0,
+            r3=0,
             T=self.parent.state.T,
         )
 
@@ -276,6 +258,7 @@ class Linear_Density(BaseModel):
 class Quadratic_Density(BaseModel):
     """
     Quadratic Density Model
+    calls Cubic_Density Model with r3=0 under the hood
     """
 
     def __init__(self, parent):
@@ -283,10 +266,11 @@ class Quadratic_Density(BaseModel):
         self.consts = ["r0", "r1", "r2"]
 
     def value(self, *args):
-        return functions.Quadratic_Density(
+        return functions.Cubic_Density(
             r0=self.parent.parameters.r0,
             r1=self.parent.parameters.r1,
             r2=self.parent.parameters.r2,
+            r3=0,
             T=self.parent.state.T,
         )
 
@@ -328,24 +312,10 @@ class Constant_Melt_Temperature(BaseModel):
         return self.parent.parameters.Tmelt0 * np.ones(len(self.parent.state.T))
 
 
-# class Linear_Melt_Temperature(BaseModel):
-#    """
-#    Linear Melt Temperature Model
-#    """
-#    consts=['Tmelt0', 'rho0', 'dTmdRho']#
-
-#    def value(self, *args):
-#        tm0=self.parent.parameters.Tmelt0
-#        rnow=self.parent.state.rho
-#        dtdr=self.parent.parameters.dTmdRho
-#        r0=self.parent.parameters.rho0
-#        tmeltnow=tm0+dtdr*(rnow-r0)
-#        return tmeltnow
-
-
 class Linear_Melt_Temperature(BaseModel):
     """
     Linear Melt Temperature Model
+    calls Cubic_Melt_Temperature Model with tm2=0=tm3 under the hood
     """
 
     def __init__(self, parent):
@@ -353,9 +323,11 @@ class Linear_Melt_Temperature(BaseModel):
         self.consts = ["tm0", "tm1"]
 
     def value(self, *args):
-        return functions.Linear_Melt_Temperature(
+        return functions.Cubic_Melt_Temperature(
             tm0=self.parent.parameters.tm0,
             tm1=self.parent.parameters.tm1,
+            tm2=0,
+            tm3=0,
             rho=self.parent.state.rho,
         )
 
@@ -363,6 +335,7 @@ class Linear_Melt_Temperature(BaseModel):
 class Quadratic_Melt_Temperature(BaseModel):
     """
     Quadratic Melt Temperature Model
+    calls Cubic_Melt_Temperature Model with tm3=0 under the hood
     """
 
     def __init__(self, parent):
@@ -370,10 +343,11 @@ class Quadratic_Melt_Temperature(BaseModel):
         self.consts = ["tm0", "tm1", "tm2"]
 
     def value(self, *args):
-        return functions.Quadratic_Melt_Temperature(
+        return functions.Cubic_Melt_Temperature(
             tm0=self.parent.parameters.tm0,
             tm1=self.parent.parameters.tm1,
             tm2=self.parent.parameters.tm2,
+            tm3=0,
             rho=self.parent.state.rho,
         )
 
@@ -418,7 +392,9 @@ class BGP_Melt_Temperature(BaseModel):
         )
 
 
+########################
 # Shear Modulus Models
+########################
 
 
 class Constant_Shear_Modulus(BaseModel):
@@ -434,28 +410,22 @@ class Constant_Shear_Modulus(BaseModel):
         return self.parent.parameters.G0 * np.ones(len(self.parent.state.T))
 
 
-# class Linear_Shear_Modulus(BaseModel):
-#    consts =  ['G0', 'rho0', 'dGdRho' ]#
-
-#    def value(self, *args):
-#         g0=self.parent.parameters.G0
-#         rho0=self.parent.parameters.rho0
-#         dgdr=self.parent.parameters.dGdRho
-#         rnow=self.parent.state.rho
-#         gnow=g0+dgdr*(rnow-rho0)
-#         return gnow
-
-
 class Linear_Cold_PW_Shear_Modulus(BaseModel):
+    """
+    Pinear Cold PW Shear Modulus
+    calls Quadratic_Cold_PW_Shear_Modulus with g2=0 under the hood
+    """
+
     def __init__(self, parent):
         BaseModel.__init__(self, parent)
         self.consts = ["g0", "g1", "alpha"]
 
     def value(self, *args):
         mp = self.parent.parameters
-        return functions.Linear_Cold_PW_Shear_Modulus(
+        return functions.Quadratic_Cold_PW_Shear_Modulus(
             g0=mp.g0,
             g1=mp.g1,
+            g2=0,
             alpha=mp.alpha,
             rho=self.parent.state.rho,
             T=self.parent.state.T,
@@ -464,6 +434,10 @@ class Linear_Cold_PW_Shear_Modulus(BaseModel):
 
 
 class Quadratic_Cold_PW_Shear_Modulus(BaseModel):
+    """
+    Quadratic Cold PW Shear Modulus
+    """
+
     def __init__(self, parent):
         BaseModel.__init__(self, parent)
         self.consts = ["g0", "g1", "g2", "alpha"]
@@ -482,6 +456,10 @@ class Quadratic_Cold_PW_Shear_Modulus(BaseModel):
 
 
 class Simple_Shear_Modulus(BaseModel):
+    """
+    Simple Shear Modulus
+    """
+
     def __init__(self, parent):
         BaseModel.__init__(self, parent)
         self.consts = ["G0", "alpha"]
@@ -523,6 +501,10 @@ class BGP_PW_Shear_Modulus(BaseModel):
 
 
 class Stein_Shear_Modulus(BaseModel):
+    """
+    Steinberg-Guinan Shear Modulus assuming constant density and pressure
+    """
+
     # consts = ['G0', 'sgA', 'sgB']
     # assuming constant density and pressure
     # so we only include the temperature dependence
@@ -540,7 +522,9 @@ class Stein_Shear_Modulus(BaseModel):
         )
 
 
+########################
 # Yield Stress Models
+########################
 
 
 class Constant_Yield_Stress(BaseModel):
@@ -559,6 +543,10 @@ class Constant_Yield_Stress(BaseModel):
 
 
 class JC_Yield_Stress(BaseModel):
+    """
+    Johnson-Cook Yield Stress Model
+    """
+
     def __init__(self, parent):
         BaseModel.__init__(self, parent)
         self.params = ["A", "B", "C", "n", "m"]
@@ -649,8 +637,13 @@ class PTW_Yield_Stress(BaseModel):
 
 
 class Stein_Flow_Stress(BaseModel):
+    """
+    This class implements the Steinberg-Guinan flow stress model
+    """
+
     def __init__(self, parent):
         BaseModel.__init__(self, parent)
+        # TODO: generalize this model to include strain-rate dependence
         # self.params = ["y0", "a", "b", "beta", "n", "ymax"]
         ## params a, b are never used, so drop them:
         self.params = ["y0", "beta", "n", "ymax"]
@@ -944,6 +937,5 @@ def generate_strain_history(emax, edot, nhist):
     return {"times": times.T, "strains": strains.T, "strain_rate": rates.T}
 
 
-generate_strain_history_new = (
-    generate_strain_history  # only for backwards compatibility, TODO: deprecate
-)
+# only for backwards compatibility, TODO: deprecate
+generate_strain_history_new = generate_strain_history
