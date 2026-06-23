@@ -18,6 +18,7 @@ license = "BSD-3-Clause"
 license-files = ["LICENSE"]
 
 [project.optional-dependencies]
+optional = ["fdasrsf"]
 numba = [
     "numba>=0.62.1",
 ]
