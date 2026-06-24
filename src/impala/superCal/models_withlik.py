@@ -194,12 +194,12 @@ class ModelmvBayes(AbstractModel):
         inv = np.linalg.inv(mat)
         out = {"inv": inv, "ldet": ldet}
         return out
-    
+
 
 class ModelmvBayes_mf(AbstractModel):
     """
     ModelmvBayes_mf: mvBayes Emulator for Functional Outputs using multi-
-                     elastic fidelity approach (can use different BASS/BPPR 
+                     elastic fidelity approach (can use different BASS/BPPR
                      type emulators)
 
     ModelmvBayes Handles larger-dimensional functional responses (e.g., on
@@ -210,7 +210,9 @@ class ModelmvBayes_mf(AbstractModel):
     specified with non-diagonal covariances using ModelBpprPca_mult.
     """
 
-    def __init__(self, bmod, bmod_mf, input_names, exp_ind=None, s2="MH", psi=False):
+    def __init__(
+        self, bmod, bmod_mf, input_names, exp_ind=None, s2="MH", psi=False
+    ):
         """
         bmod        : mvBayes fit
         bmod_mf     : a list of mvBayes object, these are the corrections to the LF
@@ -281,14 +283,17 @@ class ModelmvBayes_mf(AbstractModel):
         ]
 
         for i in range(len(self.bmod_mf)):
-            pred1 = self.bmod_mf[i].predict(parmat_array, idxSamples=np.array([self.ii]))[
-                0, :, :]
+            pred1 = self.bmod_mf[i].predict(
+                parmat_array, idxSamples=np.array([self.ii])
+            )[0, :, :]
             if i % 2 == 0:
                 pred += pred1
             else:
                 gam = fs.geometry.v_to_gam(pred1.T)
                 for j in range(gam.shape[1]):
-                    pred[j,:] = fs.warp_f_gamma(np.linspace(0,1,gam.shape[0]), pred[j,:], gam[:, j])
+                    pred[j, :] = fs.warp_f_gamma(
+                        np.linspace(0, 1, gam.shape[0]), pred[j, :], gam[:, j]
+                    )
 
         return pred
 
