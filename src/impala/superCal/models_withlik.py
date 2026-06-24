@@ -222,7 +222,7 @@ class ModelmvBayes_mf(AbstractModel):
         psi         : option to compute metric on sphere
         """
         if not FDASRSF_AVAILABLE:
-            raise Exception(
+            raise ValueError(
                 "Module 'fdasrsf' not available. ModelmvBayes_mf cannot proceed"
             )
         self.mod = bmod
