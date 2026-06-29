@@ -300,17 +300,17 @@ class ModelmvBayes_mf(AbstractModel):
             0, :, :
         ]
 
-        for i in range(len(self.bmod_mf)):
-            pred1 = self.bmod_mf[i].predict(
+        for i, bmod_mf_i in enumerate(self.bmod_mf):
+            pred1 = bmod_mf_i.predict(
                 parmat_array, idxSamples=np.array([self.ii])
             )[0, :, :]
             if i % 2 == 0:
                 pred += pred1
             else:
                 gam = fs.geometry.v_to_gam(pred1.T)
-                for j in range(gam.shape[1]):
+                for j, gam_j in enumerate(gam.T):
                     pred[j, :] = fs.warp_f_gamma(
-                        np.linspace(0, 1, gam.shape[0]), pred[j, :], gam[:, j]
+                        np.linspace(0, 1, gam.shape[0]), pred[j, :], gam_j
                     )
 
         return pred
