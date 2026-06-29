@@ -18,7 +18,7 @@ license = "BSD-3-Clause"
 license-files = ["LICENSE"]
 
 [project.optional-dependencies]
-mvfit = [
+fda = [
     "fdasrsf>=2.6.8,<3.0",
 ]
 numba = [
